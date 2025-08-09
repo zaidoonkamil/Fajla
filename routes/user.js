@@ -143,7 +143,6 @@ router.post("/users", uploadImage.array("images", 5), async (req, res) => {
             return res.status(400).json({ error: "يجب رفع صورة للـ agent" });
         }
 
-
         const existingPhone = await User.findOne({ where: { phone } });
         if (!name || !phone || !location || !password) {
           return res.status(400).json({ error: "جميع الحقول مطلوبة" });
@@ -154,27 +153,36 @@ router.post("/users", uploadImage.array("images", 5), async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(password, saltRounds);
-        const images = req.files.map(file => file.filename);
+        const images = req.files && Array.isArray(req.files) ? req.files.map(file => file.filename) : [];
         const isVerified = (role === "admin" || role === "agent") ? true : false;
 
-        const user = await User.create({ name, phone, location, password: hashedPassword, role, isVerified,image: images.length > 0 ? images[0] : null});
+        const user = await User.create({ 
+          name, 
+          phone, 
+          location, 
+          password: hashedPassword, 
+          role, 
+          isVerified,
+          image: images.length > 0 ? images[0] : null
+        });
 
         res.status(201).json({
-        id: user.id,
-        image: user.image,
-        name: user.name,
-        phone: user.phone,
-        location: user.location,
-        role: role,
-        isVerified: user.isVerified,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt
-     });
+          id: user.id,
+          image: user.image,
+          name: user.name,
+          phone: user.phone,
+          location: user.location,
+          role: role,
+          isVerified: user.isVerified,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt
+        });
     } catch (err) {
         console.error("❌ Error creating user:", err);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
 
 router.post("/login", upload.none(), async (req, res) => {
   const { phone , password } = req.body;
