@@ -1,6 +1,7 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
+const sequelize = require("./config/db");
 
 const usersRouter = require("./routes/user");
 const adsRouter = require("./routes/ads");
@@ -9,6 +10,11 @@ const favoritedRouter = require("./routes/favorites");
 //const orderRouter = require("./routes/order");
 //const basketRouter = require("./routes/basket");
 const chat = require("./routes/chatRoutes");
+
+
+sequelize.sync({ alter: true })
+  .then(() => {console.log("✅ Database & tables synced!");
+  }).catch((err) => { console.error("❌ Error syncing database:", err);  });
 
 const app = express();
 const server = http.createServer(app);
