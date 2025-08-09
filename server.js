@@ -6,8 +6,8 @@ const usersRouter = require("./routes/user");
 const adsRouter = require("./routes/ads");
 const categoriesRouter = require("./routes/categories");
 const favoritedRouter = require("./routes/favorites");
-const orderRouter = require("./routes/order");
-const basketRouter = require("./routes/basket");
+//const orderRouter = require("./routes/order");
+//const basketRouter = require("./routes/basket");
 const chat = require("./routes/chatRoutes");
 
 const app = express();
@@ -26,8 +26,8 @@ app.use("/", usersRouter);
 app.use("/", adsRouter);
 app.use("/", categoriesRouter);
 app.use("/", favoritedRouter);
-app.use("/", orderRouter);
-app.use("/", basketRouter);
+//app.use("/", orderRouter);
+//app.use("/", basketRouter);
 app.use("/", chat.router);
 
 chat.initChatSocket(io);
