@@ -86,7 +86,7 @@ router.get("/basket/:id", uploads.none(), async (req, res) => {
   }
 });
 
-router.delete("/basket/item/:id", async (req, res) => {
+router.delete("/basket/item/:id", uploads.none(), async (req, res) => {
   const userId = req.body.id;
   const itemId = req.params.id;
   try {
