@@ -57,25 +57,34 @@ router.get("/basket/:id", uploads.none(), async (req, res) => {
   const userId = req.params.id;
 
   try {
-    let basket = await Basket.findOne({ where: { userId } });
+    const basket = await Basket.findOne({ where: { userId } });
 
+    // لو ما فيه سلة نرجع مصفوفة فارغة
     if (!basket) {
-      basket = await Basket.create({ userId });
-      return res.status(200).json({ basket, items: [] });
+      return res.status(200).json([]);
     }
 
     const basketItems = await BasketItem.findAll({
       where: { basketId: basket.id },
-      include: [{ model: Product, attributes: ['id', 'name', 'price'] }],
+      include: [{ model: Product, attributes: ['id', 'title', 'price', 'images'] }],
     });
 
-    res.status(200).json({ basket, items: basketItems });
+    // نُعيد العناصر كـ JSON عادي (بدون حقل basket)
+    const items = basketItems.map(item => ({
+      id: item.id,
+      productId: item.productId,
+      quantity: item.quantity,
+      product: item.Product ? item.Product.toJSON() : null,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    }));
+
+    return res.status(200).json(items);
   } catch (error) {
     console.error("❌ Error fetching basket:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 
 router.delete("/basket/item/:id", async (req, res) => {
   const userId = req.body.id;
