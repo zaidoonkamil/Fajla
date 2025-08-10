@@ -53,8 +53,8 @@ router.post("/basket", uploads.none(), async (req, res) => {
   }
 });
 
-router.get("/basket", uploads.none(), async (req, res) => {
-  const userId = req.body.id;
+router.get("/basket/:id", uploads.none(), async (req, res) => {
+  const userId = req.params.id;
 
   try {
     const basket = await Basket.findOne({ where: { userId } });
