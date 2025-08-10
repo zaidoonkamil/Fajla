@@ -53,7 +53,7 @@ router.post("/basket", uploads.none(), async (req, res) => {
   }
 });
 
-router.get("/basket", async (req, res) => {
+router.get("/basket", uploads.none(), async (req, res) => {
   const userId = req.body.id;
 
   try {
