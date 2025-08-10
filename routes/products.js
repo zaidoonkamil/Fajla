@@ -4,7 +4,7 @@ const {Product, User} = require("../models");
 const upload = require("../middlewares/uploads");
 
 router.post("/products", upload.array("images", 5), async (req, res) => {
-    const { title, description, price } = req.body;
+    const { title, description, price, userId} = req.body;
 
     if (!title || !price) {
       return res.status(400).json({ error: "العنوان والسعر مطلوبان" });
@@ -16,7 +16,6 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
 
     try {
       const images = req.files.map((file) => file.filename);
-      const userId = req.user.id;
 
       const product = await Product.create({
         title,
