@@ -9,7 +9,7 @@ const categoriesRouter = require("./routes/categories");
 const favoritedRouter = require("./routes/favorites");
 const productsRouter = require("./routes/products");
 //const orderRouter = require("./routes/order");
-//const basketRouter = require("./routes/basket");
+const basketRouter = require("./routes/Basket");
 const chat = require("./routes/chatRoutes");
 
 
@@ -35,7 +35,7 @@ app.use("/", categoriesRouter);
 app.use("/", favoritedRouter);
 app.use("/", productsRouter);
 //app.use("/", orderRouter);
-//app.use("/", basketRouter);
+app.use("/", basketRouter);
 app.use("/", chat.router);
 
 chat.initChatSocket(io);
