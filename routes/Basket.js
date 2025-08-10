@@ -57,9 +57,11 @@ router.get("/basket/:id", uploads.none(), async (req, res) => {
   const userId = req.params.id;
 
   try {
-    const basket = await Basket.findOne({ where: { userId } });
+    let basket = await Basket.findOne({ where: { userId } });
+
     if (!basket) {
-      return res.status(404).json({ error: "السلة غير موجودة" });
+      basket = await Basket.create({ userId });
+      return res.status(200).json({ basket, items: [] });
     }
 
     const basketItems = await BasketItem.findAll({
@@ -73,6 +75,7 @@ router.get("/basket/:id", uploads.none(), async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 
 router.delete("/basket/item/:id", async (req, res) => {
   const userId = req.body.id;
