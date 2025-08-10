@@ -34,22 +34,42 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
   }
 );
 
-router.get("/products", async (req, res) => {
+router.get("/products/:id", async (req, res) => {
+  const userId = req.params.id; 
+
   try {
     let { page, limit } = req.query;
     page = parseInt(page) || 1;
-    limit = parseInt(limit) || 10; 
+    limit = parseInt(limit) || 10;
     const offset = (page - 1) * limit;
 
     const { count, rows: products } = await Product.findAndCountAll({
-      include: {
-        model: User,
-        as: "seller",
-        attributes: ["id", "name", "phone", "location", "role", "isVerified", "image"],
-      },
+      include: [
+        {
+          model: User,
+          as: "seller",
+          attributes: ["id", "name", "phone", "location", "role", "isVerified", "image"],
+        },
+        {
+          model: User,
+          as: "favoritedByUsers",
+          where: { id: userId },
+          required: false,   
+          attributes: ["id"],
+          through: { attributes: [] }, 
+        },
+      ],
       limit,
       offset,
       order: [["createdAt", "DESC"]],
+    });
+
+    const productsWithFavorite = products.map(product => {
+      const isFavorite = product.favoritedByUsers && product.favoritedByUsers.length > 0;
+      const prodJson = product.toJSON();
+      prodJson.isFavorite = isFavorite;
+      delete prodJson.favoritedByUsers;
+      return prodJson;
     });
 
     const totalPages = Math.ceil(count / limit);
@@ -58,13 +78,14 @@ router.get("/products", async (req, res) => {
       totalItems: count,
       totalPages,
       currentPage: page,
-      products,
+      products: productsWithFavorite,
     });
   } catch (error) {
     console.error("❌ Error fetching products:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 
 router.get("/products/:id", async (req, res) => {
   try {
