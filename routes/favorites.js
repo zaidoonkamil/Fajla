@@ -71,18 +71,13 @@ router.get("/allfavorites/:id", async (req, res) => {
 
     const products = favorites.filter(fav => fav.product != null).map(fav => fav.product);
 
-    res.status(200).json({
-      page: 1,
-      pageSize: products.length,
-      totalItems: products.length,
-      totalPages: 1,
-      products,
-    });
+    res.status(200).json({ products });
   } catch (error) {
     console.error("❌ Error fetching favorites:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 
 
 module.exports = router;
