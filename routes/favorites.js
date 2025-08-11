@@ -53,15 +53,15 @@ router.get("/favorites/:id", async (req, res) => {
       include: [
         {
           model: Product,
-          as: "product", 
+          as: "product",
           attributes: [
-            "id", "title", "description", "price", "images", 
+            "id", "title", "description", "price", "images",
             "createdAt", "updatedAt", "userId", "categoryId"
           ],
           include: [
             {
               model: User,
-              as: "seller",  
+              as: "seller",
               attributes: ["id", "name", "phone", "location", "role", "isVerified", "image"],
             }
           ]
@@ -69,8 +69,7 @@ router.get("/favorites/:id", async (req, res) => {
       ],
     });
 
-
-    const products = favorites.map(fav => fav.product);
+    const products = favorites.filter(fav => fav.product != null).map(fav => fav.product);
 
     res.status(200).json({
       page: 1,
