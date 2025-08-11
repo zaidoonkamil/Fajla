@@ -4,7 +4,7 @@ const {Product, User} = require("../models");
 const upload = require("../middlewares/uploads");
 
 router.post("/products", upload.array("images", 5), async (req, res) => {
-    const { title, description, price, userId} = req.body;
+    const { title, description, price, userId, categoryId} = req.body;
 
     if (!title || !price) {
       return res.status(400).json({ error: "العنوان والسعر مطلوبان" });
@@ -23,6 +23,7 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
         price,
         images,
         userId,
+        categoryId,
       });
 
       res.status(201).json(product);
@@ -85,7 +86,7 @@ router.get("/products/:id", async (req, res) => {
   }
 });
 
-router.get("/products/:id", async (req, res) => {
+router.get("/productItem/:id", async (req, res) => {
   try {
     const product = await Product.findByPk(req.params.id, {
       include: {
