@@ -30,7 +30,6 @@ router.post("/categories", upload.array("images", 5), async (req, res) => {
   }
 });
 
-
 router.get("/categories", upload.none(), async (req, res) => {
     try {
         const categories = await Category.findAll();
@@ -54,6 +53,40 @@ router.get("/categories/:id", upload.none(), async (req, res) => {
         console.error("❌ Error fetching category:", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
+});
+
+router.get("/categories/:id/products", async (req, res) => {
+  const categoryId = req.params.id;
+  const page = parseInt(req.query.page) || 1;    
+  const pageSize = parseInt(req.query.pageSize) || 10;  
+
+  const offset = (page - 1) * pageSize;
+  const limit = pageSize;
+
+  try {
+    const category = await Category.findByPk(categoryId);
+
+    if (!category) {
+      return res.status(404).json({ error: "القسم غير موجود" });
+    }
+
+    const { rows: products, count } = await Product.findAndCountAll({
+      where: { categoryId },
+      limit,
+      offset,
+    });
+
+    res.json({
+      page,
+      pageSize,
+      totalItems: count,
+      totalPages: Math.ceil(count / pageSize),
+      products,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching products for category:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
 router.delete("/categories/:id", async (req, res) => {

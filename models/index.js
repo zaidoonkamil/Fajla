@@ -43,6 +43,9 @@ ChatMessage.belongsTo(User, { as: "receiver", foreignKey: "receiverId" , onDelet
 User.hasMany(ChatMessage, { as: "sentMessages", foreignKey: "senderId" , onDelete: 'CASCADE' });
 User.hasMany(ChatMessage, { as: "receivedMessages", foreignKey: "receiverId" , onDelete: 'CASCADE'});
 
+Category.hasMany(Product, { foreignKey: "categoryId", as: "products", onDelete: "CASCADE" });
+Product.belongsTo(Category, { foreignKey: "categoryId", as: "category", onDelete: "CASCADE" });
+
 module.exports = {
   User,
   UserDevice,
