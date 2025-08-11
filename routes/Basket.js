@@ -5,7 +5,10 @@ const multer = require("multer");
 const uploads = multer();
 
 router.post("/basket", uploads.none(), async (req, res) => {
-  const { productId, quantity, userId} = req.body;
+  let { productId, quantity, userId } = req.body;
+
+  productId = parseInt(productId);
+  quantity = parseInt(quantity) || 1;
 
   if (!productId) {
     return res.status(400).json({ error: "يجب تحديد المنتج" });
@@ -24,7 +27,7 @@ router.post("/basket", uploads.none(), async (req, res) => {
 
     const basketItems = await BasketItem.findAll({
       where: { basketId: basket.id },
-      include: [{ model: Product, attributes: ['userId'] }],
+      include: [{ model: Product, attributes: ["userId"] }],
     });
 
     if (basketItems.length > 0) {
@@ -34,15 +37,18 @@ router.post("/basket", uploads.none(), async (req, res) => {
       }
     }
 
-    let basketItem = basketItems.find(item => item.productId === productId);
+    let basketItem = await BasketItem.findOne({
+      where: { basketId: basket.id, productId },
+    });
+
     if (basketItem) {
-      basketItem.quantity += quantity || 1;
+      basketItem.quantity += quantity;
       await basketItem.save();
     } else {
       basketItem = await BasketItem.create({
         basketId: basket.id,
         productId,
-        quantity: quantity || 1,
+        quantity,
       });
     }
 
