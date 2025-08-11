@@ -45,5 +45,45 @@ router.get("/favorites/:productId", async (req, res) => {
   }
 });
 
+router.get("/favorites/:id", async (req, res) => {
+  const userId = req.params.id;
+  try {
+    const favorites = await Favorite.findAll({
+      where: { userId },
+      include: [
+        {
+          model: Product,
+          as: "product", 
+          attributes: [
+            "id", "title", "description", "price", "images", 
+            "createdAt", "updatedAt", "userId", "categoryId"
+          ],
+          include: [
+            {
+              model: User,
+              as: "seller",  
+              attributes: ["id", "name", "phone", "location", "role", "isVerified", "image"],
+            }
+          ]
+        },
+      ],
+    });
+
+
+    const products = favorites.map(fav => fav.product);
+
+    res.status(200).json({
+      page: 1,
+      pageSize: products.length,
+      totalItems: products.length,
+      totalPages: 1,
+      products,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching favorites:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 
 module.exports = router;
