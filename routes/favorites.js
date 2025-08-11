@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { Favorite, Product} = require("../models");
+const { Favorite, Product, User} = require("../models");
 
 router.post("/favorites/:productId", async (req, res) => {
   const userId = req.user.id;
