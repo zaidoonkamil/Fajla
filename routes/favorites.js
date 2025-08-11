@@ -2,9 +2,9 @@ const express = require("express");
 const router = express.Router();
 const { Favorite, Product, User} = require("../models");
 
-router.post("/favorites/:productId", async (req, res) => {
-  const userId = req.user.id;
-  const productId = req.body.productId;
+router.post("/favorites/:userId/add/:productId", async (req, res) => {
+  const userId = req.params.id;
+  const productId = req.params.productId;
 
   try {
     const product = await Product.findByPk(productId);
