@@ -93,7 +93,7 @@ router.get("/basket/:id", uploads.none(), async (req, res) => {
 });
 
 router.delete("/basket/:userId/item/:id", uploads.none(), async (req, res) => {
-  const userId = req.params.id;
+  const userId = req.params.userId;
   const itemId = req.params.id;
   try {
     const basket = await Basket.findOne({ where: { userId } });
