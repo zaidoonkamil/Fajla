@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { Category } = require('../models');
+const { Category, Product } = require('../models');
 const upload = require("../middlewares/uploads");
 
 router.post("/categories", upload.array("images", 5), async (req, res) => {
