@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { Category, Product } = require('../models');
+const { Category, Product, User } = require('../models');
 const upload = require("../middlewares/uploads");
 
 router.post("/categories", upload.array("images", 5), async (req, res) => {
@@ -55,13 +55,15 @@ router.get("/categories/:id", upload.none(), async (req, res) => {
     }
 });
 
+
 router.get("/categories/:id/products", async (req, res) => {
   const categoryId = req.params.id;
-  let { page, limit } = req.query;
+  const userId = parseInt(req.query.userId) || null; 
+  let page = parseInt(req.query.page) || 1;
+  let pageSize = parseInt(req.query.pageSize) || 10;
 
-  page = parseInt(page) || 1;
-  limit = parseInt(limit) || 10;
-  const offset = (page - 1) * limit;
+  const offset = (page - 1) * pageSize;
+  const limit = pageSize;
 
   try {
     const category = await Category.findByPk(categoryId);
@@ -70,32 +72,53 @@ router.get("/categories/:id/products", async (req, res) => {
       return res.status(404).json({ error: "القسم غير موجود" });
     }
 
-    const { count, rows: products } = await Product.findAndCountAll({
+    const include = [
+      {
+        model: User,
+        as: "seller",
+        attributes: ["id", "name", "phone", "location", "role", "isVerified", "image"],
+      },
+    ];
+
+    if (userId) {
+      include.push({
+        model: User,
+        as: "favoritedByUsers",
+        where: { id: userId },
+        required: false,
+        attributes: ["id"],
+        through: { attributes: [] },
+      });
+    }
+
+    const { rows: products, count } = await Product.findAndCountAll({
       where: { categoryId },
-      include: [
-        {
-          model: User,
-          as: "seller",
-          attributes: ["id", "name", "phone", "location", "role", "isVerified", "image"],
-        },
-      ],
+      include,
       limit,
       offset,
       order: [["createdAt", "DESC"]],
     });
 
+    const productsWithFavorite = products.map(product => {
+      const isFavorite = product.favoritedByUsers && product.favoritedByUsers.length > 0;
+      const prodJson = product.toJSON();
+      prodJson.isFavorite = isFavorite;
+      delete prodJson.favoritedByUsers; 
+      return prodJson;
+    });
+
     res.json({
+      page,
+      pageSize,
       totalItems: count,
-      totalPages: Math.ceil(count / limit),
-      currentPage: page,
-      products,
+      totalPages: Math.ceil(count / pageSize),
+      products: productsWithFavorite,
     });
   } catch (error) {
     console.error("❌ Error fetching products for category:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 
 router.delete("/categories/:id", async (req, res) => {
     const categoryId = req.params.id;
