@@ -45,7 +45,7 @@ router.get("/favorites/:productId", async (req, res) => {
   }
 });
 
-router.get("/favorites/:id", async (req, res) => {
+router.get("/allfavorites/:id", async (req, res) => {
   const userId = req.params.id;
   try {
     const favorites = await Favorite.findAll({
