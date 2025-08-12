@@ -5,7 +5,7 @@ const multer = require("multer");
 const uploads = multer();
 
 router.post("/orders/:userId", uploads.none(), async (req, res) => {
-  const userId = req.params.id;
+  const userId = req.params.userId;
   const { phone, address, products} = req.body;
 
   if (!phone || !address) {
