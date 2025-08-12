@@ -4,8 +4,8 @@ const { Basket, BasketItem, Product } = require("../models");
 const multer = require("multer");
 const uploads = multer();
 
-router.post("/orders", uploads.none(), async (req, res) => {
-  const userId = req.user.id;
+router.post("/orders/:userId", uploads.none(), async (req, res) => {
+  const userId = req.params.id;
   const { phone, address, products} = req.body;
 
   if (!phone || !address) {
