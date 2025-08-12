@@ -71,7 +71,6 @@ router.post("/orders/:userId", uploads.none(), async (req, res) => {
   }
 });
 
-
 router.patch("/orders/:orderId/status", uploads.none(), async (req, res) => {
   const { orderId } = req.params;
   const { status } = req.body;
@@ -99,8 +98,8 @@ router.patch("/orders/:orderId/status", uploads.none(), async (req, res) => {
   }
 });
 
-router.get("/orders", uploads.none(), async (req, res) => {
-  const userId = req.query.userId; 
+router.get("/orders/:userId", uploads.none(), async (req, res) => {
+  const userId = req.params.userId; 
 
   if (!userId) {
     return res.status(400).json({ error: "يرجى تحديد معرف المستخدم userId" });
