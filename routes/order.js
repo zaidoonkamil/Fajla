@@ -1,12 +1,12 @@
 const express = require("express");
 const router = express.Router();
-const { Order, OrderItem, Product } = require("../models");
+const { Order, OrderItem, Product, Basket} = require("../models");
 const multer = require("multer");
 const uploads = multer();
 
 router.post("/orders/:userId", uploads.none(), async (req, res) => {
   const userId = req.params.userId;
-  const { phone, address, products} = req.body;
+  const { phone, address, products } = req.body;
 
   if (!phone || !address) {
     return res.status(400).json({ error: "رقم الهاتف والعنوان مطلوبان" });
@@ -17,13 +17,11 @@ router.post("/orders/:userId", uploads.none(), async (req, res) => {
   }
 
   try {
-
     for (const item of products) {
       if (typeof item.productId !== "number" || typeof item.quantity !== "number" || item.quantity <= 0) {
         return res.status(400).json({ error: "بيانات المنتجات غير صحيحة" });
       }
     }
-
 
     const productIds = products.map(p => p.productId);
     const dbProducts = await Product.findAll({
@@ -34,13 +32,11 @@ router.post("/orders/:userId", uploads.none(), async (req, res) => {
       return res.status(400).json({ error: "منتجات غير موجودة في النظام" });
     }
 
-
     let totalPrice = 0;
     products.forEach(item => {
       const prod = dbProducts.find(p => p.id === item.productId);
       totalPrice += prod.price * item.quantity;
     });
-
 
     const order = await Order.create({
       userId,
@@ -49,7 +45,6 @@ router.post("/orders/:userId", uploads.none(), async (req, res) => {
       totalPrice,
       status: "قيد الانتضار"
     });
-
 
     for (const item of products) {
       const prod = dbProducts.find(p => p.id === item.productId);
@@ -61,6 +56,11 @@ router.post("/orders/:userId", uploads.none(), async (req, res) => {
       });
     }
 
+    const basket = await Basket.findOne({ where: { userId } });
+    if (basket) {
+      await BasketItem.destroy({ where: { basketId: basket.id } });
+    }
+
     return res.status(201).json({
       message: "تم إنشاء الطلب بنجاح",
       orderId: order.id,
@@ -70,6 +70,7 @@ router.post("/orders/:userId", uploads.none(), async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 
 router.patch("/orders/:orderId/status", uploads.none(), async (req, res) => {
   const { orderId } = req.params;
