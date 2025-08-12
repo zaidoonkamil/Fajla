@@ -5,7 +5,8 @@ const multer = require("multer");
 const uploads = multer();
 
 router.post("/orders", uploads.none(), async (req, res) => {
-  const { phone, address, products, userId} = req.body;
+  const userId = req.user.id;
+  const { phone, address, products} = req.body;
 
   if (!phone || !address) {
     return res.status(400).json({ error: "رقم الهاتف والعنوان مطلوبان" });
