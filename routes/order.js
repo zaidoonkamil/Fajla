@@ -135,6 +135,7 @@ router.get("/orders/:userId", uploads.none(), async (req, res) => {
         createdAt: order.createdAt,
         totalItems,
         totalPrice,
+        status: order.status,
       };
     });
 
