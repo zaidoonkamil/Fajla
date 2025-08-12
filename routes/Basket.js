@@ -4,58 +4,69 @@ const { Basket, BasketItem, Product } = require("../models");
 const multer = require("multer");
 const uploads = multer();
 
-router.post("/basket", uploads.none(), async (req, res) => {
-  let { productId, quantity, userId } = req.body;
+router.post("/orders", uploads.none(), async (req, res) => {
+  const { phone, address, products, userId} = req.body;
 
-  productId = parseInt(productId);
-  quantity = parseInt(quantity) || 1;
+  if (!phone || !address) {
+    return res.status(400).json({ error: "رقم الهاتف والعنوان مطلوبان" });
+  }
 
-  if (!productId) {
-    return res.status(400).json({ error: "يجب تحديد المنتج" });
+  if (!products || !Array.isArray(products) || products.length === 0) {
+    return res.status(400).json({ error: "يجب تمرير قائمة المنتجات مع الكميات" });
   }
 
   try {
-    const product = await Product.findByPk(productId);
-    if (!product) {
-      return res.status(404).json({ error: "المنتج غير موجود" });
-    }
 
-    let basket = await Basket.findOne({ where: { userId } });
-    if (!basket) {
-      basket = await Basket.create({ userId });
-    }
-
-    const basketItems = await BasketItem.findAll({
-      where: { basketId: basket.id },
-      include: [{ model: Product, attributes: ["userId"] }],
-    });
-
-    if (basketItems.length > 0) {
-      const currentSellerId = basketItems[0].Product.userId;
-      if (product.userId !== currentSellerId) {
-        return res.status(400).json({ error: "لا يمكن إضافة منتجات من تجار مختلفين في نفس السلة" });
+    for (const item of products) {
+      if (typeof item.productId !== "number" || typeof item.quantity !== "number" || item.quantity <= 0) {
+        return res.status(400).json({ error: "بيانات المنتجات غير صحيحة" });
       }
     }
 
-    let basketItem = await BasketItem.findOne({
-      where: { basketId: basket.id, productId },
+
+    const productIds = products.map(p => p.productId);
+    const dbProducts = await Product.findAll({
+      where: { id: productIds }
     });
 
-    if (basketItem) {
-      basketItem.quantity += quantity;
-      await basketItem.save();
-    } else {
-      basketItem = await BasketItem.create({
-        basketId: basket.id,
-        productId,
-        quantity,
+    if (dbProducts.length !== products.length) {
+      return res.status(400).json({ error: "منتجات غير موجودة في النظام" });
+    }
+
+
+    let totalPrice = 0;
+    products.forEach(item => {
+      const prod = dbProducts.find(p => p.id === item.productId);
+      totalPrice += prod.price * item.quantity;
+    });
+
+
+    const order = await Order.create({
+      userId,
+      phone,
+      address,
+      totalPrice,
+      status: "قيد الانتضار"
+    });
+
+
+    for (const item of products) {
+      const prod = dbProducts.find(p => p.id === item.productId);
+      await OrderItem.create({
+        orderId: order.id,
+        productId: item.productId,
+        quantity: item.quantity,
+        priceAtOrder: prod.price,
       });
     }
 
-    res.status(200).json({ message: "تمت إضافة المنتج للسلة", basketItem });
+    return res.status(201).json({
+      message: "تم إنشاء الطلب بنجاح",
+      orderId: order.id,
+    });
   } catch (error) {
-    console.error("❌ Error adding to basket:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("❌ Error creating order:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
