@@ -233,9 +233,10 @@ router.get("/orders/status/:status", async (req, res) => {
   }
 });
 
-router.get("/agent/orders/status/:status/:agentId", async (req, res) => {
+router.get("/agent/orders/status", async (req, res) => {
   const allowedStatuses = ["قيد الانتضار", "قيد التوصيل", "مكتمل", "ملغي"];
-  const { status, agentId } = req.params;
+  const status = req.query.status;
+  const agentId = req.query.agentId;
 
   if (!allowedStatuses.includes(status)) {
     return res.status(400).json({ error: "حالة الطلب غير صحيحة" });
