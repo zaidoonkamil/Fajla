@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { Order, OrderItem, Product, Basket, BasketItem} = require("../models");
+const { Order, OrderItem, Product, Basket, BasketItem, User} = require("../models");
 const multer = require("multer");
 const uploads = multer();
 const { Op } = require("sequelize");
@@ -306,6 +306,7 @@ router.get("/agent/orders/status", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 
 
 module.exports = router;
