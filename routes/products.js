@@ -122,5 +122,49 @@ router.delete("/products/:id", async (req, res) => {
   }
 });
 
+router.get("/products/seller/:sellerId", async (req, res) => {
+  const sellerId = req.params.sellerId;
+
+  try {
+    let { page, limit } = req.query;
+    page = parseInt(page) || 1;
+    limit = parseInt(limit) || 10;
+    const offset = (page - 1) * limit;
+
+    const { count, rows: products } = await Product.findAndCountAll({
+      where: { userId: sellerId }, 
+      include: [
+        {
+          model: User,
+          as: "seller",
+          attributes: [
+            "id",
+            "name",
+            "phone",
+            "location",
+            "role",
+            "isVerified",
+            "image",
+          ],
+        },
+      ],
+      limit,
+      offset,
+      order: [["createdAt", "DESC"]],
+    });
+
+    const totalPages = Math.ceil(count / limit);
+
+    res.json({
+      totalItems: count,
+      totalPages,
+      currentPage: page,
+      products,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching seller products:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 
 module.exports = router;
