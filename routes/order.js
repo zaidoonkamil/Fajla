@@ -3,6 +3,7 @@ const router = express.Router();
 const { Order, OrderItem, Product, Basket, BasketItem} = require("../models");
 const multer = require("multer");
 const uploads = multer();
+const { Op } = require("sequelize");
 
 router.post("/orders/:userId", uploads.none(), async (req, res) => {
   const userId = req.params.userId;
@@ -235,8 +236,8 @@ router.get("/orders/status/:status", async (req, res) => {
 
 router.get("/agent/orders/status", async (req, res) => {
   const allowedStatuses = ["قيد الانتضار", "قيد التوصيل", "مكتمل", "ملغي"];
-  const status = req.query.status;
-  const agentId = req.query.agentId;
+  const status = (req.query.status || "").trim();
+  const agentId = parseInt(req.query.agentId);
 
   if (!allowedStatuses.includes(status)) {
     return res.status(400).json({ error: "حالة الطلب غير صحيحة" });
@@ -244,7 +245,7 @@ router.get("/agent/orders/status", async (req, res) => {
 
   try {
     const orders = await Order.findAll({
-      where: { status },
+      where: { status: { [Op.eq]: status } },
       order: [["createdAt", "DESC"]],
       include: [
         {
@@ -252,13 +253,16 @@ router.get("/agent/orders/status", async (req, res) => {
           include: [
             {
               model: Product,
-              where: { userId: agentId },
+              where: { userId: { [Op.eq]: agentId } },
               attributes: ["id", "title", "price", "images", "userId"],
               include: [
                 {
                   model: User,
                   as: "seller",
-                  attributes: ["id", "name", "phone", "location", "role", "isVerified", "image"],
+                  attributes: [
+                    "id", "name", "phone", "location", 
+                    "role", "isVerified", "image"
+                  ],
                 },
               ],
             },
