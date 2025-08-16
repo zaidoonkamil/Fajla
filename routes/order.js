@@ -154,12 +154,11 @@ router.get("/orders/:userId", uploads.none(), async (req, res) => {
   }
 });
 
-router.get("/orders/status/:status", async (req, res) => {
+router.get("/orders/admin/status", async (req, res) => {
   const allowedStatuses = ["قيد الانتضار", "قيد التوصيل", "مكتمل", "ملغي"];
-  const status = req.params.status;
-
-  const page = parseInt(req.query.page) || 1; 
-  const limit = parseInt(req.query.limit) || 10; 
+  const status = (req.query.status || "").trim();
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
   const offset = (page - 1) * limit;
 
   if (!allowedStatuses.includes(status)) {
@@ -167,11 +166,11 @@ router.get("/orders/status/:status", async (req, res) => {
   }
 
   try {
-    const { count, rows: orders } = await Order.findAndCountAll({
-      where: { status },
+    const { rows: orders, count: totalItems } = await Order.findAndCountAll({
+      where: { status: { [Op.eq]: status } },
       order: [["createdAt", "DESC"]],
-      limit,
       offset,
+      limit,
       include: [
         {
           model: OrderItem,
@@ -183,7 +182,10 @@ router.get("/orders/status/:status", async (req, res) => {
                 {
                   model: User,
                   as: "seller",
-                  attributes: ["id", "name", "phone", "location", "role", "isVerified", "image"],
+                  attributes: [
+                    "id", "name", "phone", "location",
+                    "role", "isVerified", "image"
+                  ],
                 },
               ],
             },
@@ -193,21 +195,8 @@ router.get("/orders/status/:status", async (req, res) => {
     });
 
     const ordersData = orders.map(order => {
-      const totalItems = order.OrderItems.reduce((sum, item) => sum + item.quantity, 0);
+      const totalItemsOrder = order.OrderItems.reduce((sum, item) => sum + item.quantity, 0);
       const totalPrice = order.OrderItems.reduce((sum, item) => sum + (item.quantity * item.priceAtOrder), 0);
-
-      const items = order.OrderItems.map(item => ({
-        id: item.id,
-        quantity: item.quantity,
-        priceAtOrder: item.priceAtOrder,
-        product: {
-          id: item.Product.id,
-          title: item.Product.title,
-          price: item.Product.price,
-          images: item.Product.images,
-          seller: item.Product.seller,
-        }
-      }));
 
       return {
         id: order.id,
@@ -215,21 +204,35 @@ router.get("/orders/status/:status", async (req, res) => {
         address: order.address,
         status: order.status,
         createdAt: order.createdAt,
-        totalItems,
+        totalItems: totalItemsOrder,
         totalPrice,
-        items,
+        items: order.OrderItems.map(item => ({
+          id: item.id,
+          quantity: item.quantity,
+          priceAtOrder: item.priceAtOrder,
+          product: {
+            id: item.Product.id,
+            title: item.Product.title,
+            price: item.Product.price,
+            images: item.Product.images,
+            seller: item.Product.seller,
+          },
+        })),
       };
     });
 
-    res.json({
-      totalOrders: count,
-      totalPages: Math.ceil(count / limit),
-      currentPage: page,
-      orders: ordersData
-    });
+    const totalPages = Math.ceil(totalItems / limit);
 
+    res.json({
+      orders: ordersData,
+      paginationOrdersAdmin: {
+        currentPage: page,
+        totalPages,
+        totalItems
+      }
+    });
   } catch (error) {
-    console.error("❌ Error fetching orders by status:", error);
+    console.error("❌ Error fetching admin orders by status:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
