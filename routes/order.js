@@ -238,15 +238,20 @@ router.get("/agent/orders/status", async (req, res) => {
   const allowedStatuses = ["قيد الانتضار", "قيد التوصيل", "مكتمل", "ملغي"];
   const status = (req.query.status || "").trim();
   const agentId = parseInt(req.query.agentId);
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const offset = (page - 1) * limit;
 
   if (!allowedStatuses.includes(status)) {
     return res.status(400).json({ error: "حالة الطلب غير صحيحة" });
   }
 
   try {
-    const orders = await Order.findAll({
+    const { rows: orders, count: totalItems } = await Order.findAndCountAll({
       where: { status: { [Op.eq]: status } },
       order: [["createdAt", "DESC"]],
+      offset,
+      limit,
       include: [
         {
           model: OrderItem,
@@ -260,7 +265,7 @@ router.get("/agent/orders/status", async (req, res) => {
                   model: User,
                   as: "seller",
                   attributes: [
-                    "id", "name", "phone", "location", 
+                    "id", "name", "phone", "location",
                     "role", "isVerified", "image"
                   ],
                 },
@@ -274,7 +279,7 @@ router.get("/agent/orders/status", async (req, res) => {
     const filteredOrders = orders.filter(order => order.OrderItems.length > 0);
 
     const ordersData = filteredOrders.map(order => {
-      const totalItems = order.OrderItems.reduce((sum, item) => sum + item.quantity, 0);
+      const totalItemsOrder = order.OrderItems.reduce((sum, item) => sum + item.quantity, 0);
       const totalPrice = order.OrderItems.reduce((sum, item) => sum + (item.quantity * item.priceAtOrder), 0);
 
       return {
@@ -283,7 +288,7 @@ router.get("/agent/orders/status", async (req, res) => {
         address: order.address,
         status: order.status,
         createdAt: order.createdAt,
-        totalItems,
+        totalItems: totalItemsOrder,
         totalPrice,
         items: order.OrderItems.map(item => ({
           id: item.id,
@@ -300,7 +305,16 @@ router.get("/agent/orders/status", async (req, res) => {
       };
     });
 
-    res.json(ordersData);
+    const totalPages = Math.ceil(totalItems / limit);
+
+    res.json({
+      orders: ordersData,
+      paginationOrdersUser: {
+        currentPage: page,
+        totalPages,
+        totalItems
+      }
+    });
   } catch (error) {
     console.error("❌ Error fetching agent orders by status:", error);
     res.status(500).json({ error: "Internal Server Error" });
