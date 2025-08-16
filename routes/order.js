@@ -225,7 +225,7 @@ router.get("/orders/admin/status", async (req, res) => {
 
     res.json({
       orders: ordersData,
-      paginationOrdersAdmin: {
+      paginationOrders: {
         currentPage: page,
         totalPages,
         totalItems
