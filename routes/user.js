@@ -11,6 +11,29 @@ const OtpCode = require("../models/OtpCode");
 const axios = require('axios');
 const uploadImage = require("../middlewares/uploads");
 
+router.get("/fix-phone-unique", async (req, res) => {
+  try {
+    // 1. جلب كل الـ indexes
+    const [indexes] = await sequelize.query("SHOW INDEX FROM Users;");
+
+    // 2. حذف أي indexes زائدة على عمود phone
+    for (const idx of indexes) {
+      if (idx.Column_name === "phone" && idx.Non_unique === 0) {
+        // هذا index فريد موجود مسبقًا، نحذفه أولًا
+        await sequelize.query(`ALTER TABLE Users DROP INDEX ${idx.Key_name};`);
+      }
+    }
+
+    // 3. إضافة UNIQUE على عمود phone
+    await sequelize.query("ALTER TABLE Users ADD UNIQUE (phone);");
+
+    res.json({ message: "تم تعديل عمود phone وجعله فريد بنجاح" });
+  } catch (err) {
+    console.error("❌ خطأ في تعديل عمود phone:", err);
+    res.status(500).json({ error: "حدث خطأ أثناء تعديل العمود" });
+  }
+});
+
 const generateToken = (user) => {
     return jwt.sign(
         { id: user.id, email: user.email, role: user.role },
