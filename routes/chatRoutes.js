@@ -19,7 +19,7 @@ function initChatSocket(io) {
 
         const newMessage = await ChatMessage.create({
           senderId,
-          receiverId: receiverId || null, // null للرسائل العامة
+          receiverId: receiverId || null,
           message,
         });
 
@@ -31,25 +31,27 @@ function initChatSocket(io) {
           ],
         });
 
-        if (!receiverId) {
-          // رسالة عامة: أرسل لكل الأدمن + للمرسل نفسه
-          const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
-          const recipients = [...admins.map(a => a.id), senderId];
+        let recipients = [];
 
-          recipients.forEach(id => {
-            const sockets = userSockets.get(id.toString()) || [];
-            sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
-          });
+        if (!receiverId) {
+          // رسالة عامة: كل الأدمن + المرسل نفسه
+          const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
+          recipients = [...admins.map(a => a.id), senderId];
         } else {
-          // رسالة خاصة
-          const sockets = userSockets.get(receiverId.toString()) || [];
-          sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
+          // رسالة خاصة: المرسل + المستقبل
+          recipients = [senderId, receiverId];
         }
+
+        recipients.forEach(id => {
+          const sockets = userSockets.get(id.toString()) || [];
+          sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
+        });
 
       } catch (error) {
         console.error("❌ خطأ في إرسال الرسالة:", error);
       }
     });
+
 
     socket.on("disconnect", () => {
       console.log(`❌ مستخدم قطع الاتصال: ${userId}`);
