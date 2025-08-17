@@ -59,13 +59,21 @@ function initChatSocket(io) {
 }
 
 // ------------------- API -------------------
+
 router.post("/sendMessage", async (req, res) => {
   try {
     const { senderId, receiverId, message } = req.body;
 
+    if (!senderId || !message) {
+      return res.status(400).json({ error: "البيانات غير كاملة" });
+    }
+
+    // إذا receiverId غير موجود أو 0، اعتبرها رسالة عامة للأدمن
+    const finalReceiverId = receiverId && receiverId !== 0 ? receiverId : null;
+
     const newMessage = await ChatMessage.create({
       senderId,
-      receiverId: receiverId || null, // null للرسائل العامة
+      receiverId: finalReceiverId,
       message,
     });
 
@@ -79,6 +87,7 @@ router.post("/sendMessage", async (req, res) => {
 
     res.json(fullMessage);
   } catch (err) {
+    console.error("❌ خطأ في إرسال الرسالة:", err);
     res.status(500).json({ error: err.message });
   }
 });
