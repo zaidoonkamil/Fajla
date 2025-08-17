@@ -3,11 +3,12 @@ const router = express.Router();
 const { ChatMessage, User } = require("../models");
 const { Op } = require("sequelize");
 
+// ------------------- Socket -------------------
 function initChatSocket(io) {
   const userSockets = new Map();
 
   io.on("connection", (socket) => {
-    const { userId } = socket.handshake.query; 
+    const { userId } = socket.handshake.query;
     console.log(`🔌 مستخدم متصل بالسوكيت: ${userId}`);
 
     if (!userSockets.has(userId)) userSockets.set(userId, []);
@@ -19,7 +20,7 @@ function initChatSocket(io) {
 
         const newMessage = await ChatMessage.create({
           senderId,
-          receiverId: receiverId || null, 
+          receiverId: receiverId || null, // null للرسائل العامة
           message,
         });
 
@@ -32,18 +33,16 @@ function initChatSocket(io) {
         });
 
         if (!receiverId) {
+          // رسالة عامة للأدمن
           const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
           admins.forEach(admin => {
             const sockets = userSockets.get(admin.id.toString()) || [];
             sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
           });
         } else {
+          // رسالة خاصة
           const sockets = userSockets.get(receiverId.toString()) || [];
-          if (sockets.length > 0) {
-            sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
-          } else {
-            io.emit("newMessage", fullMessage); 
-          }
+          sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
         }
 
       } catch (error) {
@@ -57,15 +56,16 @@ function initChatSocket(io) {
       userSockets.set(userId, sockets.filter(id => id !== socket.id));
     });
   });
-};
+}
 
+// ------------------- API -------------------
 router.post("/sendMessage", async (req, res) => {
   try {
     const { senderId, receiverId, message } = req.body;
 
     const newMessage = await ChatMessage.create({
       senderId,
-      receiverId: receiverId || null,
+      receiverId: receiverId || null, // null للرسائل العامة
       message,
     });
 
@@ -83,24 +83,6 @@ router.post("/sendMessage", async (req, res) => {
   }
 });
 
-
-router.get("/MessagesForAdmin", async (req, res) => {
-  try {
-    const messages = await ChatMessage.findAll({
-      include: [
-        { model: User, as: "sender", attributes: ["id", "name"] },
-        { model: User, as: "receiver", attributes: ["id", "name"] },
-      ],
-      order: [["createdAt", "ASC"]],
-    });
-
-    res.json(messages);
-  } catch (error) {
-    console.error("❌ خطأ في جلب الرسائل:", error);
-    res.status(500).json({ error: "حدث خطأ أثناء جلب الرسائل" });
-  }
-});
-
 router.get("/MessagesForUser/:userId", async (req, res) => {
   const { userId } = req.params;
   const user = await User.findByPk(userId);
@@ -114,7 +96,7 @@ router.get("/MessagesForUser/:userId", async (req, res) => {
       [Op.or]: [
         { senderId: userId },
         { receiverId: userId },
-        { receiverId: null },
+        { receiverId: null }, // رسائل عامة
       ],
     };
   } else {
@@ -160,27 +142,19 @@ router.get("/UsersWithLastMessage", async (req, res) => {
     const usersMap = new Map();
 
     messages.forEach(msg => {
-      if (!adminIds.includes(msg.senderId)) {
-        if (!usersMap.has(msg.senderId)) {
-          usersMap.set(msg.senderId, { user: msg.sender, lastMessage: msg });
-        }
+      if (!adminIds.includes(msg.senderId) && msg.sender) {
+        if (!usersMap.has(msg.senderId)) usersMap.set(msg.senderId, { user: msg.sender, lastMessage: msg });
       }
-
-      if (!adminIds.includes(msg.receiverId)) {
-        if (!usersMap.has(msg.receiverId)) {
-          usersMap.set(msg.receiverId, { user: msg.receiver, lastMessage: msg });
-        }
+      if (!adminIds.includes(msg.receiverId) && msg.receiver) {
+        if (!usersMap.has(msg.receiverId)) usersMap.set(msg.receiverId, { user: msg.receiver, lastMessage: msg });
       }
     });
 
-    const result = Array.from(usersMap.values());
-
-    res.json(result);
+    res.json(Array.from(usersMap.values()));
   } catch (error) {
     console.error("❌ خطأ في جلب المستخدمين مع آخر رسالة:", error);
     res.status(500).json({ error: "حدث خطأ أثناء جلب المستخدمين مع آخر رسالة" });
   }
 });
-
 
 module.exports = { router, initChatSocket };
