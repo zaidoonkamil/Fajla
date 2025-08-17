@@ -89,8 +89,8 @@ router.get("/usersWithLastMessage", async (req, res) => {
         ],
       },
       include: [
-        { model: User, as: "sender", attributes: ["id", "name", "deletedAt"] },
-        { model: User, as: "receiver", attributes: ["id", "name", "deletedAt"] },
+        { model: User, as: "sender", attributes: ["id", "name"] },
+        { model: User, as: "receiver", attributes: ["id", "name"] },
       ],
       order: [["createdAt", "DESC"]],
       limit: 50, // آخر 50 رسالة
