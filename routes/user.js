@@ -260,18 +260,70 @@ router.get("/verify-token", (req, res) => {
   });
 });
 
-router.get("/users", async (req, res) => {
+router.get("/usersOnly", async (req, res) => {
   try {
-    const users = await User.findAll({
+    const page = parseInt(req.query.page) || 1; 
+    const limit = parseInt(req.query.limit) || 10; 
+    const offset = (page - 1) * limit;
+
+    const { count, rows: users } = await User.findAndCountAll({
       where: {
         role: {
-          [Op.ne]: "admin"
+          [Op.notIn]: ["admin", "agent"] 
         }
+      },
+      limit,
+      offset,
+      order: [["createdAt", "DESC"]]
+    });
+
+    const totalPages = Math.ceil(count / limit);
+
+    res.status(200).json({
+      users,
+      pagination: {
+        totalUsers: count,
+        currentPage: page,
+        totalPages,
+        limit
       }
     });
-    res.status(200).json(users);
   } catch (err) {
-    console.error("❌ Error fetching users:", err);
+    console.error("❌ Error fetching users with pagination:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+router.get("/agentsOnly", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1; 
+    const limit = parseInt(req.query.limit) || 10; 
+    const offset = (page - 1) * limit;
+
+    const { count, rows: users } = await User.findAndCountAll({
+      where: {
+        role: {
+          [Op.notIn]: ["admin", "user"] 
+        }
+      },
+      limit,
+      offset,
+      order: [["createdAt", "DESC"]]
+    });
+
+    const totalPages = Math.ceil(count / limit);
+
+    res.status(200).json({
+      users,
+      pagination: {
+        totalUsers: count,
+        currentPage: page,
+        totalPages,
+        limit
+      }
+    });
+  } catch (err) {
+    console.error("❌ Error fetching users with pagination:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
