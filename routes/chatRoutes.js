@@ -4,8 +4,14 @@ const { ChatMessage, User } = require("../models");
 const { Op } = require("sequelize");
 
 function initChatSocket(io) {
+  const userSockets = new Map();
+
   io.on("connection", (socket) => {
-    console.log("🔌 مستخدم متصل بالسوكيت");
+    const { userId } = socket.handshake.query; 
+    console.log(`🔌 مستخدم متصل بالسوكيت: ${userId}`);
+
+    if (!userSockets.has(userId)) userSockets.set(userId, []);
+    userSockets.get(userId).push(socket.id);
 
     socket.on("sendMessage", async (data) => {
       try {
@@ -28,10 +34,16 @@ function initChatSocket(io) {
         if (!receiverId) {
           const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
           admins.forEach(admin => {
-            io.to(admin.id.toString()).emit("newMessage", fullMessage);
+            const sockets = userSockets.get(admin.id.toString()) || [];
+            sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
           });
         } else {
-          io.emit("newMessage", fullMessage);
+          const sockets = userSockets.get(receiverId.toString()) || [];
+          if (sockets.length > 0) {
+            sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
+          } else {
+            io.emit("newMessage", fullMessage); 
+          }
         }
 
       } catch (error) {
@@ -40,10 +52,13 @@ function initChatSocket(io) {
     });
 
     socket.on("disconnect", () => {
-      console.log("❌ مستخدم قطع الاتصال بالسوكيت");
+      console.log(`❌ مستخدم قطع الاتصال: ${userId}`);
+      const sockets = userSockets.get(userId) || [];
+      userSockets.set(userId, sockets.filter(id => id !== socket.id));
     });
   });
 };
+
 
 router.get("/MessagesForAdmin", async (req, res) => {
   try {
