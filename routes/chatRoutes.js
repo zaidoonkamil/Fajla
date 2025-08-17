@@ -87,8 +87,8 @@ router.get("/UsersWithLastMessage", async (req, res) => {
     const messages = await ChatMessage.findAll({
       where: {
         [Op.or]: [
-          { senderId: adminIds },
-          { receiverId: adminIds },
+          { senderId: { [Op.in]: adminIds } },
+          { receiverId: { [Op.in]: adminIds } },
         ],
       },
       include: [
