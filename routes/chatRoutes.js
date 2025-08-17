@@ -66,14 +66,29 @@ router.get("/MessagesForUser/:userId", async (req, res) => {
   const { userId } = req.params;
   const user = await User.findByPk(userId);
 
-  const messages = await ChatMessage.findAll({
-    where: {
+  if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
+
+  let whereCondition;
+
+  if (user.role === "admin") {
+    whereCondition = {
       [Op.or]: [
         { senderId: userId },
         { receiverId: userId },
-        ...(user.role === "admin" ? [{ receiverId: null }] : []),
+        { receiverId: null },
       ],
-    },
+    };
+  } else {
+    whereCondition = {
+      [Op.or]: [
+        { senderId: userId },
+        { receiverId: userId },
+      ],
+    };
+  }
+
+  const messages = await ChatMessage.findAll({
+    where: whereCondition,
     include: [
       { model: User, as: "sender", attributes: ["id", "name"] },
       { model: User, as: "receiver", attributes: ["id", "name"] },
