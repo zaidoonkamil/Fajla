@@ -76,15 +76,17 @@ function initChatSocket(io) {
 
 router.get("/usersWithLastMessage", async (req, res) => {
   try {
+    // جلب كل الإدمن
     const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
     const adminIds = admins.map(a => a.id);
 
-    // جلب كل الرسائل بين المستخدمين والأدمن بدون تحديد limit
+    // آخر 50 رسالة بين أي مستخدم وأي أدمن أو الرسائل المفتوحة للإدمن (receiverId = NULL)
     const messages = await ChatMessage.findAll({
       where: {
         [Op.or]: [
-          { senderId: { [Op.notIn]: adminIds }, receiverId: { [Op.in]: adminIds } },
-          { senderId: { [Op.in]: adminIds }, receiverId: { [Op.notIn]: adminIds } },
+          { senderId: { [Op.notIn]: adminIds }, receiverId: { [Op.in]: adminIds } }, // المستخدم -> أدمن
+          { senderId: { [Op.in]: adminIds }, receiverId: { [Op.notIn]: adminIds } }, // أدمن -> مستخدم
+          { senderId: { [Op.notIn]: adminIds }, receiverId: null }, // المستخدم -> للجميع (الإدمن)
         ],
       },
       include: [
@@ -92,17 +94,24 @@ router.get("/usersWithLastMessage", async (req, res) => {
         { model: User, as: "receiver", attributes: ["id", "name"] },
       ],
       order: [["createdAt", "DESC"]],
+      limit: 50,
     });
 
     const usersMap = new Map();
 
-    // نأخذ آخر رسالة لكل مستخدم
     messages.forEach(msg => {
-      const user = !adminIds.includes(msg.senderId) ? msg.sender : msg.receiver;
-      const userId = user.id;
+      // إذا المرسل ليس أدمن نضيفه
+      if (!adminIds.includes(msg.senderId) && msg.sender) {
+        if (!usersMap.has(msg.senderId)) {
+          usersMap.set(msg.senderId, { user: msg.sender, lastMessage: msg });
+        }
+      }
 
-      if (!usersMap.has(userId)) {
-        usersMap.set(userId, { user, lastMessage: msg });
+      // إذا المستقبل ليس أدمن ونفس الرسالة ليست null
+      if (msg.receiverId && !adminIds.includes(msg.receiverId) && msg.receiver) {
+        if (!usersMap.has(msg.receiverId)) {
+          usersMap.set(msg.receiverId, { user: msg.receiver, lastMessage: msg });
+        }
       }
     });
 
@@ -112,6 +121,7 @@ router.get("/usersWithLastMessage", async (req, res) => {
     res.status(500).json({ error: "حدث خطأ أثناء جلب المستخدمين" });
   }
 });
+
 
 
 module.exports = { router, initChatSocket };
