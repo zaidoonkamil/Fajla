@@ -3,16 +3,18 @@ const router = express.Router();
 const { ChatMessage, User } = require("../models");
 const { Op } = require("sequelize");
 
+// الاحتفاظ بسوكيتات المستخدمين والأدمن
 function initChatSocket(io) {
-  const userSockets = new Map(); // كل مستخدم يحتفظ بأكثر من سوكيت (عدة جلسات)
-  const adminSockets = new Set(); // لتخزين سوكيتات الأدمن
+  const userSockets = new Map(); // لكل مستخدم عدة جلسات
+  const adminSockets = new Set(); // كل سوكيتات الأدمن
 
   io.on("connection", (socket) => {
     const { userId, role } = socket.handshake.query;
     if (!userId) return socket.disconnect(true);
 
-    console.log(`🔌 مستخدم متصل: ${userId}, role: ${role}`);
+    console.log(`🔌 متصل: ${userId}, role: ${role}`);
 
+    // تخزين السوكيت
     if (role === "admin") {
       adminSockets.add(socket.id);
     } else {
@@ -20,7 +22,7 @@ function initChatSocket(io) {
       userSockets.get(userId).push(socket.id);
     }
 
-    // جلب الرسائل عند الطلب
+    // إرسال الرسائل عند الطلب
     socket.on("getMessages", async () => {
       try {
         const messages = await ChatMessage.findAll({
@@ -70,9 +72,8 @@ function initChatSocket(io) {
           sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
         });
 
-        // **تحديث قائمة الأدمن مباشرة (Realtime)**
-        // كل الأدمن يحصل على قائمة المستخدمين مع آخر رسالة
-        const usersWithLastMessage = await getUsersWithLastMessage(); // دالة منفصلة (نشرحها تحت)
+        // تحديث قائمة الأدمن realtime
+        const usersWithLastMessage = await getUsersWithLastMessage();
         adminSockets.forEach(sid => io.to(sid).emit("usersWithLastMessage", usersWithLastMessage));
 
       } catch (err) {
@@ -80,8 +81,9 @@ function initChatSocket(io) {
       }
     });
 
+    // فصل الاتصال
     socket.on("disconnect", () => {
-      console.log(`❌ مستخدم قطع الاتصال: ${userId}`);
+      console.log(`❌ قطع الاتصال: ${userId}`);
       if (role === "admin") {
         adminSockets.delete(socket.id);
       } else {
@@ -92,6 +94,7 @@ function initChatSocket(io) {
   });
 }
 
+// دالة لجلب المستخدمين مع آخر رسالة لكل منهم
 async function getUsersWithLastMessage() {
   const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
   const adminIds = admins.map(a => a.id);
@@ -123,6 +126,5 @@ async function getUsersWithLastMessage() {
 
   return Array.from(usersMap.values());
 }
-
 
 module.exports = { router, initChatSocket };
