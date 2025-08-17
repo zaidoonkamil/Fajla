@@ -10,6 +10,7 @@ const { Op } = require("sequelize");
 const OtpCode = require("../models/OtpCode");
 const axios = require('axios');
 const uploadImage = require("../middlewares/uploads");
+const sequelize = require("../config/db");
 
 
 router.get("/fixChatMessageTable", async (req, res) => {
