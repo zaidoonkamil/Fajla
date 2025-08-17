@@ -35,20 +35,11 @@ function initChatSocket(io) {
       console.log("❌ مستخدم قطع الاتصال بالسوكيت");
     });
   });
-}
+};
 
-router.get("/Message/:userId", async (req, res) => {
+router.get("/MessagesForAdmin", async (req, res) => {
   try {
-    const { userId } = req.params;
-    const adminId = 1;
-
     const messages = await ChatMessage.findAll({
-      where: {
-        [Op.or]: [
-          { senderId: userId, receiverId: adminId },
-          { senderId: adminId, receiverId: userId },
-        ],
-      },
       include: [
         { model: User, as: "sender", attributes: ["id", "name"] },
         { model: User, as: "receiver", attributes: ["id", "name"] },
@@ -60,6 +51,31 @@ router.get("/Message/:userId", async (req, res) => {
   } catch (error) {
     console.error("❌ خطأ في جلب الرسائل:", error);
     res.status(500).json({ error: "حدث خطأ أثناء جلب الرسائل" });
+  }
+});
+
+router.get("/MessagesForUser/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const messages = await ChatMessage.findAll({
+      where: {
+        [Op.or]: [
+          { senderId: userId },
+          { receiverId: userId },
+        ],
+      },
+      include: [
+        { model: User, as: "sender", attributes: ["id", "name"] },
+        { model: User, as: "receiver", attributes: ["id", "name"] },
+      ],
+      order: [["createdAt", "ASC"]],
+    });
+
+    res.json(messages);
+  } catch (error) {
+    console.error("❌ خطأ في جلب رسائل المستخدم:", error);
+    res.status(500).json({ error: "حدث خطأ أثناء جلب رسائل المستخدم" });
   }
 });
 
