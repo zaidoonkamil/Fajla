@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { ChatMessage, User } = require("../models");
+const { Op } = require("sequelize");
 
 function initChatSocket(io) {
   io.on("connection", (socket) => {
@@ -43,8 +44,10 @@ router.get("/Message/:userId", async (req, res) => {
 
     const messages = await ChatMessage.findAll({
       where: {
-        senderId: [userId, adminId],
-        receiverId: [userId, adminId],
+        [Op.or]: [
+          { senderId: userId, receiverId: adminId },
+          { senderId: adminId, receiverId: userId },
+        ],
       },
       include: [
         { model: User, as: "sender", attributes: ["id", "name"] },
@@ -55,7 +58,7 @@ router.get("/Message/:userId", async (req, res) => {
 
     res.json(messages);
   } catch (error) {
-    console.error(error);
+    console.error("❌ خطأ في جلب الرسائل:", error);
     res.status(500).json({ error: "حدث خطأ أثناء جلب الرسائل" });
   }
 });
