@@ -17,12 +17,14 @@ function initChatSocket(io) {
       try {
         const { senderId, receiverId, message } = data;
 
+        // إنشاء الرسالة في قاعدة البيانات
         const newMessage = await ChatMessage.create({
           senderId,
           receiverId: receiverId || null,
           message,
         });
 
+        // جلب الرسالة كاملة مع بيانات المرسل والمستقبل
         const fullMessage = await ChatMessage.findOne({
           where: { id: newMessage.id },
           include: [
@@ -36,12 +38,13 @@ function initChatSocket(io) {
         if (!receiverId) {
           // رسالة عامة: كل الأدمن + المرسل نفسه
           const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
-          recipients = [...admins.map(a => a.id), senderId];
+          recipients = [...admins.map(a => a.id), senderId]; // <-- أضف senderId هنا
         } else {
           // رسالة خاصة: المرسل + المستقبل
           recipients = [senderId, receiverId];
         }
 
+        // إرسال الرسالة لكل المستلمين
         recipients.forEach(id => {
           const sockets = userSockets.get(id.toString()) || [];
           sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
@@ -52,7 +55,6 @@ function initChatSocket(io) {
       }
     });
 
-
     socket.on("disconnect", () => {
       console.log(`❌ مستخدم قطع الاتصال: ${userId}`);
       const sockets = userSockets.get(userId) || [];
@@ -61,6 +63,7 @@ function initChatSocket(io) {
   });
 }
 
+// ------------------- API -------------------
 
 router.post("/sendMessage", async (req, res) => {
   try {
@@ -70,7 +73,6 @@ router.post("/sendMessage", async (req, res) => {
       return res.status(400).json({ error: "البيانات غير كاملة" });
     }
 
-    // إذا receiverId غير موجود أو 0، اعتبرها رسالة عامة للأدمن
     const finalReceiverId = receiverId && receiverId !== 0 ? receiverId : null;
 
     const newMessage = await ChatMessage.create({
