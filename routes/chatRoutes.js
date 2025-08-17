@@ -59,6 +59,30 @@ function initChatSocket(io) {
   });
 };
 
+router.post("/sendMessage", async (req, res) => {
+  try {
+    const { senderId, receiverId, message } = req.body;
+
+    const newMessage = await ChatMessage.create({
+      senderId,
+      receiverId: receiverId || null,
+      message,
+    });
+
+    const fullMessage = await ChatMessage.findOne({
+      where: { id: newMessage.id },
+      include: [
+        { model: User, as: "sender", attributes: ["id", "name"] },
+        { model: User, as: "receiver", attributes: ["id", "name"] },
+      ],
+    });
+
+    res.json(fullMessage);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 router.get("/MessagesForAdmin", async (req, res) => {
   try {
