@@ -74,7 +74,6 @@ function initChatSocket(io) {
   });
 }
 
-// جلب آخر 50 رسالة بين المستخدمين والأدمن ثم ترتيبها حسب المستخدم
 router.get("/usersWithLastMessage", async (req, res) => {
   try {
     const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
@@ -93,18 +92,21 @@ router.get("/usersWithLastMessage", async (req, res) => {
         { model: User, as: "receiver", attributes: ["id", "name"] },
       ],
       order: [["createdAt", "DESC"]],
-      limit: 50, // آخر 50 رسالة
+      limit: 50,
     });
 
     const usersMap = new Map();
 
     messages.forEach(msg => {
-      if (!adminIds.includes(msg.senderId) && msg.sender && !msg.sender.deletedAt) {
+      // تحقق من أن المرسل ليس أدمن
+      if (!adminIds.includes(msg.senderId) && msg.sender) {
         if (!usersMap.has(msg.senderId)) {
           usersMap.set(msg.senderId, { user: msg.sender, lastMessage: msg });
         }
       }
-      if (!adminIds.includes(msg.receiverId) && msg.receiver && !msg.receiver.deletedAt) {
+
+      // تحقق من أن المستقبل ليس أدمن
+      if (!adminIds.includes(msg.receiverId) && msg.receiver) {
         if (!usersMap.has(msg.receiverId)) {
           usersMap.set(msg.receiverId, { user: msg.receiver, lastMessage: msg });
         }
@@ -117,6 +119,7 @@ router.get("/usersWithLastMessage", async (req, res) => {
     res.status(500).json({ error: "حدث خطأ أثناء جلب المستخدمين" });
   }
 });
+
 
 
 
