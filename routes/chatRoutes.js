@@ -34,7 +34,7 @@ function initChatSocket(io) {
         new Map(userList.map(u => [u.id, u])).values()
       );
 
-      socket.emit("chatUsers", uniqueUsers);
+       io.emit("chatUsers", uniqueUsers);
     }
 
     sendChatUsers();
@@ -71,7 +71,6 @@ function initChatSocket(io) {
   });
 }
 
-// API لعرض الرسائل بين الأدمن والمستخدم
 router.get("/messages/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
