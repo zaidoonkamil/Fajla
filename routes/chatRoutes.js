@@ -71,4 +71,32 @@ function initChatSocket(io) {
   });
 }
 
+// API لعرض الرسائل بين الأدمن والمستخدم
+router.get("/messages/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const adminId = 1;
+
+    const messages = await ChatMessage.findAll({
+      where: {
+        [Op.or]: [
+          { senderId: userId, receiverId: adminId },
+          { senderId: adminId, receiverId: userId },
+        ],
+      },
+      include: [
+        { model: User, as: "sender", attributes: ["id", "name"] },
+        { model: User, as: "receiver", attributes: ["id", "name"] },
+      ],
+      order: [["createdAt", "ASC"]],
+    });
+
+    res.json(messages);
+  } catch (error) {
+    console.error("❌ خطأ في جلب الرسائل:", error);
+    res.status(500).json({ error: "فشل في جلب الرسائل" });
+  }
+});
+
+
 module.exports = { router, initChatSocket };
