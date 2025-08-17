@@ -1,10 +1,43 @@
 const express = require("express");
 const router = express.Router();
 const { ChatMessage, User } = require("../models");
+const { Op } = require("sequelize");
 
 function initChatSocket(io) {
   io.on("connection", (socket) => {
     console.log("🔌 مستخدم متصل بالسوكيت");
+
+    const adminId = 1;
+
+    async function sendChatUsers() {
+      const messages = await ChatMessage.findAll({
+        attributes: ["senderId", "receiverId"],
+        where: {
+          [Op.or]: [
+            { senderId: adminId },
+            { receiverId: adminId }
+          ]
+        },
+        include: [
+          { model: User, as: "sender", attributes: ["id", "name"] },
+          { model: User, as: "receiver", attributes: ["id", "name"] },
+        ],
+      });
+
+      const userList = [];
+      messages.forEach(msg => {
+        if (msg.sender && msg.sender.id !== adminId) userList.push(msg.sender);
+        if (msg.receiver && msg.receiver.id !== adminId) userList.push(msg.receiver);
+      });
+
+      const uniqueUsers = Array.from(
+        new Map(userList.map(u => [u.id, u])).values()
+      );
+
+      socket.emit("chatUsers", uniqueUsers);
+    }
+
+    sendChatUsers();
 
     socket.on("sendMessage", async (data) => {
       try {
@@ -25,6 +58,8 @@ function initChatSocket(io) {
         });
 
         io.emit("newMessage", fullMessage);
+
+        sendChatUsers();
       } catch (error) {
         console.error("❌ خطأ في إرسال الرسالة:", error);
       }
@@ -36,15 +71,18 @@ function initChatSocket(io) {
   });
 }
 
-router.get("/Message/:userId", async (req, res) => {
+// API لعرض الرسائل بين الأدمن والمستخدم
+router.get("/messages/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
     const adminId = 1;
 
     const messages = await ChatMessage.findAll({
       where: {
-        senderId: [userId, adminId],
-        receiverId: [userId, adminId],
+        [Op.or]: [
+          { senderId: userId, receiverId: adminId },
+          { senderId: adminId, receiverId: userId },
+        ],
       },
       include: [
         { model: User, as: "sender", attributes: ["id", "name"] },
@@ -55,9 +93,10 @@ router.get("/Message/:userId", async (req, res) => {
 
     res.json(messages);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "حدث خطأ أثناء جلب الرسائل" });
+    console.error("❌ خطأ في جلب الرسائل:", error);
+    res.status(500).json({ error: "فشل في جلب الرسائل" });
   }
 });
+
 
 module.exports = { router, initChatSocket };
