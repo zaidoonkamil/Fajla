@@ -10,23 +10,6 @@ const { Op } = require("sequelize");
 const OtpCode = require("../models/OtpCode");
 const axios = require('axios');
 const uploadImage = require("../middlewares/uploads");
-const sequelize = require("../config/db");
-
-
-router.get("/fixChatMessageTable", async (req, res) => {
-  try {
-    // تعديل العمود receiverId ليقبل NULL
-    await sequelize.query(`
-      ALTER TABLE ChatMessages
-      MODIFY receiverId INT NULL;
-    `);
-
-    res.json({ message: "تم تعديل جدول ChatMessage ليقبل null في receiverId" });
-  } catch (error) {
-    console.error("❌ خطأ في تعديل الجدول:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
 
 const generateToken = (user) => {
     return jwt.sign(

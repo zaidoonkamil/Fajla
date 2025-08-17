@@ -3,7 +3,6 @@ const router = express.Router();
 const { ChatMessage, User } = require("../models");
 const { Op } = require("sequelize");
 
-// ------------------- Socket -------------------
 function initChatSocket(io) {
   const userSockets = new Map();
 
@@ -33,10 +32,12 @@ function initChatSocket(io) {
         });
 
         if (!receiverId) {
-          // رسالة عامة للأدمن
+          // رسالة عامة: أرسل لكل الأدمن + للمرسل نفسه
           const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
-          admins.forEach(admin => {
-            const sockets = userSockets.get(admin.id.toString()) || [];
+          const recipients = [...admins.map(a => a.id), senderId];
+
+          recipients.forEach(id => {
+            const sockets = userSockets.get(id.toString()) || [];
             sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
           });
         } else {
@@ -57,9 +58,6 @@ function initChatSocket(io) {
     });
   });
 }
-
-// ------------------- API -------------------
-
 
 
 router.post("/sendMessage", async (req, res) => {
