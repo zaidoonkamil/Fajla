@@ -4,15 +4,19 @@ const { ChatMessage, User } = require("../models");
 const { Op } = require("sequelize");
 
 function initChatSocket(io) {
+  // تخزين الـ sockets لكل مستخدم
   const userSockets = new Map();
 
   io.on("connection", (socket) => {
     const { userId } = socket.handshake.query;
     console.log(`🔌 مستخدم متصل بالسوكيت: ${userId}`);
 
-    if (!userSockets.has(userId)) userSockets.set(userId, []);
-    userSockets.get(userId).push(socket.id);
+    // تحويل userId إلى String لتجنب مشاكل المفتاح
+    const uid = userId.toString();
+    if (!userSockets.has(uid)) userSockets.set(uid, []);
+    userSockets.get(uid).push(socket.id);
 
+    // استقبال رسالة من العميل
     socket.on("sendMessage", async (data) => {
       try {
         const { senderId, receiverId, message } = data;
@@ -33,12 +37,12 @@ function initChatSocket(io) {
           ],
         });
 
+        // تحديد المستلمين
         let recipients = [];
-
         if (!receiverId) {
           // رسالة عامة: كل الأدمن + المرسل نفسه
           const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
-          recipients = [...admins.map(a => a.id), senderId]; // <-- أضف senderId هنا
+          recipients = [...admins.map(a => a.id), senderId];
         } else {
           // رسالة خاصة: المرسل + المستقبل
           recipients = [senderId, receiverId];
@@ -55,10 +59,51 @@ function initChatSocket(io) {
       }
     });
 
+    // طلب الرسائل عند الانضمام
+    socket.on("getMessages", async () => {
+      try {
+        const user = await User.findByPk(uid);
+        if (!user) return;
+
+        let whereCondition;
+        if (user.role === "admin") {
+          whereCondition = {
+            [Op.or]: [
+              { senderId: uid },
+              { receiverId: uid },
+              { receiverId: null }, // رسائل عامة
+            ],
+          };
+        } else {
+          whereCondition = {
+            [Op.or]: [
+              { senderId: uid },
+              { receiverId: uid },
+            ],
+          };
+        }
+
+        const messages = await ChatMessage.findAll({
+          where: whereCondition,
+          include: [
+            { model: User, as: "sender", attributes: ["id", "name"] },
+            { model: User, as: "receiver", attributes: ["id", "name"] },
+          ],
+          order: [["createdAt", "ASC"]],
+        });
+
+        socket.emit("messagesLoaded", messages);
+
+      } catch (error) {
+        console.error("❌ خطأ في جلب الرسائل:", error);
+      }
+    });
+
+    // فصل الاتصال
     socket.on("disconnect", () => {
-      console.log(`❌ مستخدم قطع الاتصال: ${userId}`);
-      const sockets = userSockets.get(userId) || [];
-      userSockets.set(userId, sockets.filter(id => id !== socket.id));
+      console.log(`❌ مستخدم قطع الاتصال: ${uid}`);
+      const sockets = userSockets.get(uid) || [];
+      userSockets.set(uid, sockets.filter(id => id !== socket.id));
     });
   });
 }
