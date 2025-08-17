@@ -4,26 +4,31 @@ const { ChatMessage, User } = require("../models");
 const { Op } = require("sequelize");
 
 function initChatSocket(io) {
-  const userSockets = new Map(); // لكل مستخدم عدة جلسات
-  const adminSockets = new Set(); // لتخزين سوكيتات الأدمن
+  const userSockets = new Map();
 
   io.on("connection", (socket) => {
-    const { userId, role } = socket.handshake.query;
+    const { userId } = socket.handshake.query;
     if (!userId) return socket.disconnect(true);
 
-    console.log(`🔌 مستخدم متصل: ${userId}, role: ${role}`);
+    console.log(`🔌 مستخدم متصل: ${userId}`);
+    if (!userSockets.has(userId)) userSockets.set(userId, []);
+    userSockets.get(userId).push(socket.id);
 
-    if (role === "admin") {
-      adminSockets.add(socket.id);
-    } else {
-      if (!userSockets.has(userId)) userSockets.set(userId, []);
-      userSockets.get(userId).push(socket.id);
-    }
-
-    // إرسال قائمة المستخدمين للأدمن فور الاتصال
-    if (role === "admin") {
-      emitUsersWithLastMessage();
-    }
+    // جلب الرسائل عند الطلب
+    socket.on("getMessages", async () => {
+      try {
+        const messages = await ChatMessage.findAll({
+          order: [["createdAt", "ASC"]],
+          include: [
+            { model: User, as: "sender", attributes: ["id", "name"] },
+            { model: User, as: "receiver", attributes: ["id", "name"] },
+          ],
+        });
+        socket.emit("messagesLoaded", messages);
+      } catch (err) {
+        console.error("❌ خطأ في جلب الرسائل:", err);
+      }
+    });
 
     // إرسال رسالة جديدة
     socket.on("sendMessage", async (data) => {
@@ -40,12 +45,12 @@ function initChatSocket(io) {
         const fullMessage = await ChatMessage.findOne({
           where: { id: newMessage.id },
           include: [
-            { model: User, as: "sender", attributes: ["id", "name", "deleted"] },
-            { model: User, as: "receiver", attributes: ["id", "name", "deleted"] },
+            { model: User, as: "sender", attributes: ["id", "name"] },
+            { model: User, as: "receiver", attributes: ["id", "name"] },
           ],
         });
 
-        // إرسال الرسالة مباشرة للمستلمين
+        // تحديد المستلمين
         let recipients = [];
         if (!receiverId) {
           const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
@@ -54,13 +59,11 @@ function initChatSocket(io) {
           recipients = [senderId, receiverId];
         }
 
+        // إرسال الرسالة لكل مستلم متصل
         recipients.forEach(id => {
           const sockets = userSockets.get(id.toString()) || [];
           sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
         });
-
-        // تحديث قائمة المستخدمين للأدمن
-        emitUsersWithLastMessage();
 
       } catch (err) {
         console.error("❌ خطأ في إرسال الرسالة:", err);
@@ -69,53 +72,11 @@ function initChatSocket(io) {
 
     socket.on("disconnect", () => {
       console.log(`❌ مستخدم قطع الاتصال: ${userId}`);
-      if (role === "admin") {
-        adminSockets.delete(socket.id);
-      } else {
-        const sockets = userSockets.get(userId) || [];
-        userSockets.set(userId, sockets.filter(id => id !== socket.id));
-      }
+      const sockets = userSockets.get(userId) || [];
+      userSockets.set(userId, sockets.filter(id => id !== socket.id));
     });
-
-    async function emitUsersWithLastMessage() {
-      const users = await getUsersWithLastMessage();
-      adminSockets.forEach(sid => io.to(sid).emit("usersWithLastMessage", users));
-    }
   });
 }
 
-// جلب جميع المستخدمين مع آخر رسالة، مع استثناء المحذوفين
-async function getUsersWithLastMessage() {
-  const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
-  const adminIds = admins.map(a => a.id);
-
-  const messages = await ChatMessage.findAll({
-    where: {
-      [Op.or]: [
-        { senderId: { [Op.notIn]: adminIds } },
-        { receiverId: { [Op.notIn]: adminIds } },
-      ],
-    },
-    include: [
-      { model: User, as: "sender", attributes: ["id", "name", "deleted"] },
-      { model: User, as: "receiver", attributes: ["id", "name", "deleted"] },
-    ],
-    order: [["createdAt", "DESC"]],
-  });
-
-  const usersMap = new Map();
-
-  messages.forEach(msg => {
-    // استثناء المستخدمين المحذوفين
-    if (msg.sender && !msg.sender.deleted && !adminIds.includes(msg.senderId)) {
-      if (!usersMap.has(msg.senderId)) usersMap.set(msg.senderId, { user: msg.sender, lastMessage: msg });
-    }
-    if (msg.receiver && !msg.receiver.deleted && !adminIds.includes(msg.receiverId)) {
-      if (!usersMap.has(msg.receiverId)) usersMap.set(msg.receiverId, { user: msg.receiver, lastMessage: msg });
-    }
-  });
-
-  return Array.from(usersMap.values());
-}
 
 module.exports = { router, initChatSocket };
