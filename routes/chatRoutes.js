@@ -14,7 +14,6 @@ function initChatSocket(io) {
     if (!userSockets.has(userId)) userSockets.set(userId, []);
     userSockets.get(userId).push(socket.id);
 
-    // جلب الرسائل عند الطلب
     socket.on("getMessages", async () => {
       try {
         const messages = await ChatMessage.findAll({
@@ -30,7 +29,6 @@ function initChatSocket(io) {
       }
     });
 
-    // إرسال رسالة جديدة
     socket.on("sendMessage", async (data) => {
       try {
         const { senderId, receiverId, message } = data;
@@ -50,7 +48,6 @@ function initChatSocket(io) {
           ],
         });
 
-        // تحديد المستلمين
         let recipients = [];
         if (!receiverId) {
           const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
@@ -59,7 +56,6 @@ function initChatSocket(io) {
           recipients = [senderId, receiverId];
         }
 
-        // إرسال الرسالة لكل مستلم متصل
         recipients.forEach(id => {
           const sockets = userSockets.get(id.toString()) || [];
           sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
@@ -77,6 +73,51 @@ function initChatSocket(io) {
     });
   });
 }
+
+// جلب آخر 50 رسالة بين المستخدمين والأدمن ثم ترتيبها حسب المستخدم
+router.get("/usersWithLastMessage", async (req, res) => {
+  try {
+    const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
+    const adminIds = admins.map(a => a.id);
+
+    // آخر 50 رسالة بين المستخدمين والأدمن
+    const messages = await ChatMessage.findAll({
+      where: {
+        [Op.or]: [
+          { senderId: { [Op.notIn]: adminIds }, receiverId: { [Op.in]: adminIds } },
+          { senderId: { [Op.in]: adminIds }, receiverId: { [Op.notIn]: adminIds } },
+        ],
+      },
+      include: [
+        { model: User, as: "sender", attributes: ["id", "name", "deletedAt"] },
+        { model: User, as: "receiver", attributes: ["id", "name", "deletedAt"] },
+      ],
+      order: [["createdAt", "DESC"]],
+      limit: 50, // آخر 50 رسالة
+    });
+
+    const usersMap = new Map();
+
+    messages.forEach(msg => {
+      if (!adminIds.includes(msg.senderId) && msg.sender && !msg.sender.deletedAt) {
+        if (!usersMap.has(msg.senderId)) {
+          usersMap.set(msg.senderId, { user: msg.sender, lastMessage: msg });
+        }
+      }
+      if (!adminIds.includes(msg.receiverId) && msg.receiver && !msg.receiver.deletedAt) {
+        if (!usersMap.has(msg.receiverId)) {
+          usersMap.set(msg.receiverId, { user: msg.receiver, lastMessage: msg });
+        }
+      }
+    });
+
+    res.json(Array.from(usersMap.values()));
+  } catch (err) {
+    console.error("❌ خطأ في جلب المستخدمين مع آخر رسالة:", err);
+    res.status(500).json({ error: "حدث خطأ أثناء جلب المستخدمين" });
+  }
+});
+
 
 
 module.exports = { router, initChatSocket };
