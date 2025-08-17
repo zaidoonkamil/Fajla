@@ -13,7 +13,7 @@ function initChatSocket(io) {
 
         const newMessage = await ChatMessage.create({
           senderId,
-          receiverId,
+          receiverId: receiverId || null, 
           message,
         });
 
@@ -25,7 +25,15 @@ function initChatSocket(io) {
           ],
         });
 
-        io.emit("newMessage", fullMessage);
+        if (!receiverId) {
+          const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
+          admins.forEach(admin => {
+            io.to(admin.id.toString()).emit("newMessage", fullMessage);
+          });
+        } else {
+          io.emit("newMessage", fullMessage);
+        }
+
       } catch (error) {
         console.error("❌ خطأ في إرسال الرسالة:", error);
       }
@@ -55,28 +63,25 @@ router.get("/MessagesForAdmin", async (req, res) => {
 });
 
 router.get("/MessagesForUser/:userId", async (req, res) => {
-  try {
-    const { userId } = req.params;
+  const { userId } = req.params;
+  const user = await User.findByPk(userId);
 
-    const messages = await ChatMessage.findAll({
-      where: {
-        [Op.or]: [
-          { senderId: userId },
-          { receiverId: userId },
-        ],
-      },
-      include: [
-        { model: User, as: "sender", attributes: ["id", "name"] },
-        { model: User, as: "receiver", attributes: ["id", "name"] },
+  const messages = await ChatMessage.findAll({
+    where: {
+      [Op.or]: [
+        { senderId: userId },
+        { receiverId: userId },
+        ...(user.role === "admin" ? [{ receiverId: null }] : []),
       ],
-      order: [["createdAt", "ASC"]],
-    });
+    },
+    include: [
+      { model: User, as: "sender", attributes: ["id", "name"] },
+      { model: User, as: "receiver", attributes: ["id", "name"] },
+    ],
+    order: [["createdAt", "ASC"]],
+  });
 
-    res.json(messages);
-  } catch (error) {
-    console.error("❌ خطأ في جلب رسائل المستخدم:", error);
-    res.status(500).json({ error: "حدث خطأ أثناء جلب رسائل المستخدم" });
-  }
+  res.json(messages);
 });
 
 router.get("/UsersWithLastMessage", async (req, res) => {
