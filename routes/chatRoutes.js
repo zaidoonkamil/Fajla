@@ -79,4 +79,49 @@ router.get("/MessagesForUser/:userId", async (req, res) => {
   }
 });
 
+router.get("/UsersWithLastMessage", async (req, res) => {
+  try {
+    const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
+    const adminIds = admins.map(a => a.id);
+
+    const messages = await ChatMessage.findAll({
+      where: {
+        [Op.or]: [
+          { senderId: adminIds },
+          { receiverId: adminIds },
+        ],
+      },
+      include: [
+        { model: User, as: "sender", attributes: ["id", "name"] },
+        { model: User, as: "receiver", attributes: ["id", "name"] },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    const usersMap = new Map();
+
+    messages.forEach(msg => {
+      if (!adminIds.includes(msg.senderId)) {
+        if (!usersMap.has(msg.senderId)) {
+          usersMap.set(msg.senderId, { user: msg.sender, lastMessage: msg });
+        }
+      }
+
+      if (!adminIds.includes(msg.receiverId)) {
+        if (!usersMap.has(msg.receiverId)) {
+          usersMap.set(msg.receiverId, { user: msg.receiver, lastMessage: msg });
+        }
+      }
+    });
+
+    const result = Array.from(usersMap.values());
+
+    res.json(result);
+  } catch (error) {
+    console.error("❌ خطأ في جلب المستخدمين مع آخر رسالة:", error);
+    res.status(500).json({ error: "حدث خطأ أثناء جلب المستخدمين مع آخر رسالة" });
+  }
+});
+
+
 module.exports = { router, initChatSocket };
