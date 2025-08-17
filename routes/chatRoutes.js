@@ -8,14 +8,33 @@ function initChatSocket(io) {
 
   io.on("connection", (socket) => {
     const { userId } = socket.handshake.query;
-    console.log(`🔌 مستخدم متصل بالسوكيت: ${userId}`);
+    if (!userId) return socket.disconnect(true);
 
+    console.log(`🔌 مستخدم متصل: ${userId}`);
     if (!userSockets.has(userId)) userSockets.set(userId, []);
     userSockets.get(userId).push(socket.id);
 
+    // جلب الرسائل عند الطلب
+    socket.on("getMessages", async () => {
+      try {
+        const messages = await ChatMessage.findAll({
+          order: [["createdAt", "ASC"]],
+          include: [
+            { model: User, as: "sender", attributes: ["id", "name"] },
+            { model: User, as: "receiver", attributes: ["id", "name"] },
+          ],
+        });
+        socket.emit("messagesLoaded", messages);
+      } catch (err) {
+        console.error("❌ خطأ في جلب الرسائل:", err);
+      }
+    });
+
+    // إرسال رسالة جديدة
     socket.on("sendMessage", async (data) => {
       try {
         const { senderId, receiverId, message } = data;
+        if (!senderId || !message) return;
 
         const newMessage = await ChatMessage.create({
           senderId,
@@ -31,27 +50,25 @@ function initChatSocket(io) {
           ],
         });
 
+        // تحديد المستلمين
         let recipients = [];
-
         if (!receiverId) {
-          // رسالة عامة: كل الأدمن + المرسل نفسه
           const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
           recipients = [...admins.map(a => a.id), senderId];
         } else {
-          // رسالة خاصة: المرسل + المستقبل
           recipients = [senderId, receiverId];
         }
 
+        // إرسال الرسالة لكل مستلم متصل
         recipients.forEach(id => {
           const sockets = userSockets.get(id.toString()) || [];
           sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
         });
 
-      } catch (error) {
-        console.error("❌ خطأ في إرسال الرسالة:", error);
+      } catch (err) {
+        console.error("❌ خطأ في إرسال الرسالة:", err);
       }
     });
-
 
     socket.on("disconnect", () => {
       console.log(`❌ مستخدم قطع الاتصال: ${userId}`);
@@ -61,110 +78,5 @@ function initChatSocket(io) {
   });
 }
 
-
-router.post("/sendMessage", async (req, res) => {
-  try {
-    const { senderId, receiverId, message } = req.body;
-
-    if (!senderId || !message) {
-      return res.status(400).json({ error: "البيانات غير كاملة" });
-    }
-
-    const finalReceiverId = receiverId && receiverId !== 0 ? receiverId : null;
-
-    const newMessage = await ChatMessage.create({
-      senderId,
-      receiverId: finalReceiverId,
-      message,
-    });
-
-    const fullMessage = await ChatMessage.findOne({
-      where: { id: newMessage.id },
-      include: [
-        { model: User, as: "sender", attributes: ["id", "name"] },
-        { model: User, as: "receiver", attributes: ["id", "name"] },
-      ],
-    });
-
-    res.json(fullMessage);
-  } catch (err) {
-    console.error("❌ خطأ في إرسال الرسالة:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.get("/MessagesForUser/:userId", async (req, res) => {
-  const { userId } = req.params;
-  const user = await User.findByPk(userId);
-
-  if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
-
-  let whereCondition;
-
-  if (user.role === "admin") {
-    whereCondition = {
-      [Op.or]: [
-        { senderId: userId },
-        { receiverId: userId },
-        { receiverId: null }, 
-      ],
-    };
-  } else {
-    whereCondition = {
-      [Op.or]: [
-        { senderId: userId },
-        { receiverId: userId },
-      ],
-    };
-  }
-
-  const messages = await ChatMessage.findAll({
-    where: whereCondition,
-    include: [
-      { model: User, as: "sender", attributes: ["id", "name"] },
-      { model: User, as: "receiver", attributes: ["id", "name"] },
-    ],
-    order: [["createdAt", "ASC"]],
-  });
-
-  res.json(messages);
-});
-
-router.get("/UsersWithLastMessage", async (req, res) => {
-  try {
-    const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
-    const adminIds = admins.map(a => a.id);
-
-    const messages = await ChatMessage.findAll({
-      where: {
-        [Op.or]: [
-          { senderId: { [Op.in]: adminIds } },
-          { receiverId: { [Op.in]: adminIds } },
-        ],
-      },
-      include: [
-        { model: User, as: "sender", attributes: ["id", "name"] },
-        { model: User, as: "receiver", attributes: ["id", "name"] },
-      ],
-      order: [["createdAt", "DESC"]],
-    });
-
-    const usersMap = new Map();
-
-    messages.forEach(msg => {
-      if (!adminIds.includes(msg.senderId) && msg.sender) {
-        if (!usersMap.has(msg.senderId)) usersMap.set(msg.senderId, { user: msg.sender, lastMessage: msg });
-      }
-      if (!adminIds.includes(msg.receiverId) && msg.receiver) {
-        if (!usersMap.has(msg.receiverId)) usersMap.set(msg.receiverId, { user: msg.receiver, lastMessage: msg });
-      }
-    });
-
-    res.json(Array.from(usersMap.values()));
-  } catch (error) {
-    console.error("❌ خطأ في جلب المستخدمين مع آخر رسالة:", error);
-    res.status(500).json({ error: "حدث خطأ أثناء جلب المستخدمين مع آخر رسالة" });
-  }
-});
 
 module.exports = { router, initChatSocket };
