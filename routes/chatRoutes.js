@@ -70,7 +70,6 @@ router.post("/sendMessage", async (req, res) => {
       return res.status(400).json({ error: "البيانات غير كاملة" });
     }
 
-    // إذا receiverId غير موجود أو 0، اعتبرها رسالة عامة للأدمن
     const finalReceiverId = receiverId && receiverId !== 0 ? receiverId : null;
 
     const newMessage = await ChatMessage.create({
@@ -107,7 +106,7 @@ router.get("/MessagesForUser/:userId", async (req, res) => {
       [Op.or]: [
         { senderId: userId },
         { receiverId: userId },
-        { receiverId: null }, // رسائل عامة
+        { receiverId: null }, 
       ],
     };
   } else {
