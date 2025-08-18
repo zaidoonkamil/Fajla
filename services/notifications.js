@@ -29,7 +29,7 @@ const sendNotificationToAll = async (message, title = "Notification") => {
       message,
       target_type: "user",
       target_value: user.id.toString(),
-      user_id: user.id, // ✅ تعيين user_id الصحيح
+      user_id: user.id, 
     };
 
     if (playerIds.length === 0) {
@@ -67,7 +67,7 @@ const sendNotificationToRole = async (role, message, title = "Notification") => 
       message,
       target_type: "user",
       target_value: userId.toString(),
-      user_id: parseInt(userId), // ✅ تعيين user_id الصحيح
+      user_id: parseInt(userId), 
     };
 
     try {
@@ -91,7 +91,7 @@ const sendNotificationToUser = async (userId, message, title = "Notification") =
     message,
     target_type: "user",
     target_value: userId.toString(),
-    user_id: userId, // ✅ تعيين user_id الصحيح
+    user_id: userId, 
   };
 
   if (playerIds.length === 0) {

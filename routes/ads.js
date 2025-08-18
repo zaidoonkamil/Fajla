@@ -20,7 +20,7 @@ router.post("/ads", upload.array("images", 5), async (req, res) => {
     });
 
     
-    await sendNotificationToRole("user", description, name );
+    await sendNotificationToRole(description, name );
 
     res.status(201).json({ message: "ads created successfully", ads });
   } catch (err) {

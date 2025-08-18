@@ -63,7 +63,7 @@ router.post("/notification", upload.none(), async (req, res) => {
 });
 
 router.get("/notifications-log", async (req, res) => {
-  const { role, user_id, page = 1, limit = 10 } = req.query;
+  const { role, user_id, page = 1, limit = 20 } = req.query;
 
   try {
     const orConditions = [{ target_type: 'all' }];
