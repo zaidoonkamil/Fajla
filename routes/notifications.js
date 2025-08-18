@@ -4,11 +4,10 @@ const router = express.Router();
 const multer = require("multer");
 const upload = multer();
 const axios = require('axios');
-const { User, UserDevice } = require('../models'); 
+const { User, UserDevice, sequelize } = require('../models'); 
 const NotificationLog = require("../models/notification_log");
 const { Op } = require("sequelize");
 const { sendNotificationToAll,  sendNotificationToRole, sendNotificationToUser} = require('../services/notifications');
-const { sequelize } = require("../models");
 
 
 router.get("/cleanup-indexes", async (req, res) => {
@@ -20,8 +19,8 @@ router.get("/cleanup-indexes", async (req, res) => {
       return res.json({ message: "✅ لا توجد فهارس مكررة، كل شيء نظيف" });
     }
 
-    // 2. خليه يحتفظ بأول index ويمسح الباقي
-    const keep = indexes[0].Key_name; // نحتفظ بالأول
+    // 2. نحتفظ بأول index ونمسح الباقي
+    const keep = indexes[0].Key_name;
     const duplicates = indexes.slice(1).map(i => i.Key_name);
 
     for (const dup of duplicates) {
