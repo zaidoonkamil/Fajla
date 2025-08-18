@@ -28,7 +28,7 @@ router.post("/orders/:userId", uploads.none(), async (req, res) => {
     const productIds = products.map(p => p.productId);
     const dbProducts = await Product.findAll({
       where: { id: productIds },
-      include: [{ model: User, as: "seller" }]
+      include: [{ model: User, as: "seller" }] 
     });
 
     if (dbProducts.length !== products.length) {
@@ -46,23 +46,21 @@ router.post("/orders/:userId", uploads.none(), async (req, res) => {
       phone,
       address,
       totalPrice,
-      status: "قيد الانتظار"
+      status: "قيد الانتضار"
     });
 
     for (const item of products) {
       const prod = dbProducts.find(p => p.id === item.productId);
-
       await OrderItem.create({
         orderId: order.id,
         productId: item.productId,
         quantity: item.quantity,
         priceAtOrder: prod.price,
       });
-
-      if (prod.userId) {
+      if (prod.seller) {
         const message = `تم طلب منتجك: ${prod.name} (الكمية: ${item.quantity})`;
         const title = "طلب جديد";
-        await sendNotificationToUser(prod.userId, message, title);
+        await sendNotificationToUser(prod.seller.id, message, title);
       }
     }
 
@@ -80,7 +78,6 @@ router.post("/orders/:userId", uploads.none(), async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 
 router.patch("/orders/:orderId/status", uploads.none(), async (req, res) => {
   const { orderId } = req.params;
