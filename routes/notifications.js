@@ -8,7 +8,7 @@ const { User, UserDevice } = require('../models');
 const NotificationLog = require("../models/notification_log");
 const { Op } = require("sequelize");
 const { sendNotificationToAll,  sendNotificationToRole, sendNotificationToUser} = require('../services/notifications');
-const { sequelize } = require("sequelize");
+const { sequelize } = require("../models");
 
 
 router.get("/cleanup-indexes", async (req, res) => {
