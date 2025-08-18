@@ -9,6 +9,7 @@ const NotificationLog = require("../models/notification_log");
 const { Op } = require("sequelize");
 const { sendNotificationToAll,  sendNotificationToRole, sendNotificationToUser} = require('../services/notifications');
 
+/*
 const { Sequelize } = require('sequelize');
 
 const sequelize = new Sequelize(
@@ -54,7 +55,7 @@ router.get("/cleanup-indexes", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
+*/
 
 router.post("/register-device", async (req, res) => {
   const { user_id, player_id } = req.body;
