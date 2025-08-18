@@ -76,17 +76,15 @@ function initChatSocket(io) {
 
 router.get("/usersWithLastMessage", async (req, res) => {
   try {
-    // جلب كل الإدمن
     const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
     const adminIds = admins.map(a => a.id);
 
-    // آخر 50 رسالة بين أي مستخدم وأي أدمن أو الرسائل المفتوحة للإدمن (receiverId = NULL)
     const messages = await ChatMessage.findAll({
       where: {
         [Op.or]: [
-          { senderId: { [Op.notIn]: adminIds }, receiverId: { [Op.in]: adminIds } }, // المستخدم -> أدمن
-          { senderId: { [Op.in]: adminIds }, receiverId: { [Op.notIn]: adminIds } }, // أدمن -> مستخدم
-          { senderId: { [Op.notIn]: adminIds }, receiverId: null }, // المستخدم -> للجميع (الإدمن)
+          { senderId: { [Op.notIn]: adminIds }, receiverId: { [Op.in]: adminIds } }, 
+          { senderId: { [Op.in]: adminIds }, receiverId: { [Op.notIn]: adminIds } }, 
+          { senderId: { [Op.notIn]: adminIds }, receiverId: null },
         ],
       },
       include: [
@@ -100,7 +98,6 @@ router.get("/usersWithLastMessage", async (req, res) => {
     const usersMap = new Map();
 
     messages.forEach(msg => {
-      // إذا المرسل ليس أدمن نضيفه
       if (!adminIds.includes(msg.senderId) && msg.sender) {
         if (!usersMap.has(msg.senderId)) {
           usersMap.set(msg.senderId, { user: msg.sender, lastMessage: msg });

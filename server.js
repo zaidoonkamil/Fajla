@@ -10,7 +10,9 @@ const favoritedRouter = require("./routes/favorites");
 const productsRouter = require("./routes/products");
 const orderRouter = require("./routes/order");
 const basketRouter = require("./routes/Basket");
+const notifications = require("./routes/notifications.js");
 const chat = require("./routes/chatRoutes");
+
 
 
 sequelize.sync({ alter: true })
@@ -36,6 +38,7 @@ app.use("/", favoritedRouter);
 app.use("/", productsRouter);
 app.use("/", orderRouter);
 app.use("/", basketRouter);
+app.use("/", notifications);
 app.use("/", chat.router);
 
 chat.initChatSocket(io);

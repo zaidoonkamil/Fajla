@@ -1,11 +1,22 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/db");
+const User = require("./user");
 
 const NotificationLog = sequelize.define("NotificationLog", {
   id: {
     type: DataTypes.INTEGER,
     autoIncrement: true,
     primaryKey: true,
+  },
+  user_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true, 
+    references: {
+      model: User,
+      key: 'id',
+    },
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE'
   },
   title: {
     type: DataTypes.STRING,
