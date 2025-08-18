@@ -66,22 +66,20 @@ router.get("/notifications-log", async (req, res) => {
   const { role, user_id, page = 1, limit = 10 } = req.query;
 
   try {
-    const whereCondition = {
-      [Op.or]: [{ target_type: 'all' }],
-    };
+    const orConditions = [{ target_type: 'all' }];
 
     if (role) {
-      whereCondition[Op.or].push({ target_type: 'role', target_value: role });
+      orConditions.push({ target_type: 'role', target_value: role });
     }
 
     if (user_id) {
-      whereCondition[Op.or].push({ target_type: 'user', user_id });
+      orConditions.push({ target_type: 'user', target_value: user_id.toString() });
     }
 
     const offset = (page - 1) * limit;
 
     const { count, rows: logs } = await NotificationLog.findAndCountAll({
-      where: whereCondition,
+      where: { [Op.or]: orConditions },
       order: [['createdAt', 'DESC']],
       limit: parseInt(limit),
       offset: parseInt(offset),
@@ -99,6 +97,7 @@ router.get("/notifications-log", async (req, res) => {
     res.status(500).json({ error: "خطأ أثناء جلب السجل" });
   }
 });
+
 
 
 module.exports = router;
