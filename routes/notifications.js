@@ -7,7 +7,7 @@ const axios = require('axios');
 const { User, UserDevice } = require('../models'); 
 const NotificationLog = require("../models/notification_log");
 const { Op } = require("sequelize");
-const { sendNotificationToAll,  sendNotificationToRole, sendNotificationToUser} = require("../services/notificationService");
+const { sendNotificationToAll,  sendNotificationToRole, sendNotificationToUser} = require('../services/notifications');
 
 router.post("/register-device", async (req, res) => {
   const { user_id, player_id } = req.body;
