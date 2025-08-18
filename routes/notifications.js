@@ -8,6 +8,36 @@ const { User, UserDevice } = require('../models');
 const NotificationLog = require("../models/notification_log");
 const { Op } = require("sequelize");
 const { sendNotificationToAll,  sendNotificationToRole, sendNotificationToUser} = require('../services/notifications');
+const { Sequelize } = require("sequelize");
+
+
+router.get("/cleanup-indexes", async (req, res) => {
+  try {
+    // 1. شوف كل الـ indexes بالجدول
+    const [indexes] = await sequelize.query("SHOW INDEX FROM user_devices WHERE Column_name = 'player_id'");
+
+    if (indexes.length <= 1) {
+      return res.json({ message: "✅ لا توجد فهارس مكررة، كل شيء نظيف" });
+    }
+
+    // 2. خليه يحتفظ بأول index ويمسح الباقي
+    const keep = indexes[0].Key_name; // نحتفظ بالأول
+    const duplicates = indexes.slice(1).map(i => i.Key_name);
+
+    for (const dup of duplicates) {
+      await sequelize.query(`ALTER TABLE user_devices DROP INDEX \`${dup}\``);
+    }
+
+    return res.json({
+      message: "🧹 تم تنظيف الفهارس المكررة",
+      kept: keep,
+      dropped: duplicates
+    });
+  } catch (err) {
+    console.error("❌ Error cleaning indexes:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 router.post("/register-device", async (req, res) => {
   const { user_id, player_id } = req.body;
