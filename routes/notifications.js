@@ -4,16 +4,35 @@ const router = express.Router();
 const multer = require("multer");
 const upload = multer();
 const axios = require('axios');
-const { User, UserDevice, sequelize } = require('../models'); 
+const { User, UserDevice } = require('../models'); 
 const NotificationLog = require("../models/notification_log");
 const { Op } = require("sequelize");
 const { sendNotificationToAll,  sendNotificationToRole, sendNotificationToUser} = require('../services/notifications');
 
+require('dotenv').config();
+const express = require('express');
+const { Sequelize } = require('sequelize');
+
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
+  {
+    host: process.env.DB_HOST || 'localhost',
+    dialect: 'mysql',
+    logging: false,
+  }
+);
 
 router.get("/cleanup-indexes", async (req, res) => {
   try {
-    // 1. شوف كل الـ indexes بالجدول
-    const [indexes] = await sequelize.query("SHOW INDEX FROM user_devices WHERE Column_name = 'player_id'");
+    // نتأكد من الاتصال
+    await sequelize.authenticate();
+
+    // 1. جلب كل الفهارس على العمود player_id
+    const [indexes] = await sequelize.query(
+      "SHOW INDEX FROM user_devices WHERE Column_name = 'player_id'"
+    );
 
     if (indexes.length <= 1) {
       return res.json({ message: "✅ لا توجد فهارس مكررة، كل شيء نظيف" });
@@ -37,6 +56,7 @@ router.get("/cleanup-indexes", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 router.post("/register-device", async (req, res) => {
   const { user_id, player_id } = req.body;
