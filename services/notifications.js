@@ -29,7 +29,7 @@ const sendNotificationToAll = async (message, title = "Notification") => {
       message,
       target_type: "user",
       target_value: user.id.toString(),
-      user_id: user.id
+      user_id: user.id, // ✅ تعيين user_id الصحيح
     };
 
     if (playerIds.length === 0) {
@@ -52,11 +52,7 @@ const sendNotificationToAll = async (message, title = "Notification") => {
 
 const sendNotificationToRole = async (role, message, title = "Notification") => {
   const devices = await UserDevice.findAll({
-    include: [{
-      model: User,
-      as: "user",
-      where: { role }
-    }]
+    include: [{ model: User, as: "user", where: { role } }]
   });
 
   const devicesByUser = {};
@@ -71,7 +67,7 @@ const sendNotificationToRole = async (role, message, title = "Notification") => 
       message,
       target_type: "user",
       target_value: userId.toString(),
-      user_id: parseInt(userId) 
+      user_id: parseInt(userId), // ✅ تعيين user_id الصحيح
     };
 
     try {
@@ -95,7 +91,7 @@ const sendNotificationToUser = async (userId, message, title = "Notification") =
     message,
     target_type: "user",
     target_value: userId.toString(),
-    user_id: userId 
+    user_id: userId, // ✅ تعيين user_id الصحيح
   };
 
   if (playerIds.length === 0) {
@@ -116,6 +112,7 @@ const sendNotificationToUser = async (userId, message, title = "Notification") =
     return { success: false, error: err.message };
   }
 };
+
 
 module.exports = {
   sendNotificationToAll,
