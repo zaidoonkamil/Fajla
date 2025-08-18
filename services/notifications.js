@@ -24,35 +24,28 @@ const sendNotificationToAll = async (message, title = "Notification") => {
     const devices = await UserDevice.findAll({ where: { user_id: user.id } });
     const playerIds = devices.map(d => d.player_id);
 
+    const logData = {
+      title,
+      message,
+      target_type: "user",
+      target_value: user.id.toString(),
+      user_id: user.id
+    };
+
     if (playerIds.length === 0) {
-      await NotificationLog.create({
-        title,
-        message,
-        target_type: "user",
-        target_value: user.id.toString(),
-        status: "failed"
-      });
+      logData.status = "failed";
+      await NotificationLog.create(logData);
       continue;
     }
 
     try {
       await sendNotificationToDevices(playerIds, message, title);
-      await NotificationLog.create({
-        title,
-        message,
-        target_type: "user",
-        target_value: user.id.toString(),
-        status: "sent"
-      });
+      logData.status = "sent";
+      await NotificationLog.create(logData);
     } catch (err) {
       console.error(`❌ Error sending notification to user ${user.id}:`, err.message);
-      await NotificationLog.create({
-        title,
-        message,
-        target_type: "user",
-        target_value: user.id.toString(),
-        status: "failed"
-      });
+      logData.status = "failed";
+      await NotificationLog.create(logData);
     }
   }
 };
@@ -73,24 +66,22 @@ const sendNotificationToRole = async (role, message, title = "Notification") => 
   });
 
   for (const [userId, playerIds] of Object.entries(devicesByUser)) {
+    const logData = {
+      title,
+      message,
+      target_type: "user",
+      target_value: userId.toString(),
+      user_id: parseInt(userId) 
+    };
+
     try {
       await sendNotificationToDevices(playerIds, message, title);
-      await NotificationLog.create({
-        title,
-        message,
-        target_type: "user",
-        target_value: userId.toString(),
-        status: "sent"
-      });
+      logData.status = "sent";
+      await NotificationLog.create(logData);
     } catch (err) {
       console.error(`❌ Error sending notification to user ${userId}:`, err.message);
-      await NotificationLog.create({
-        title,
-        message,
-        target_type: "user",
-        target_value: userId.toString(),
-        status: "failed"
-      });
+      logData.status = "failed";
+      await NotificationLog.create(logData);
     }
   }
 };
@@ -99,36 +90,29 @@ const sendNotificationToUser = async (userId, message, title = "Notification") =
   const devices = await UserDevice.findAll({ where: { user_id: userId } });
   const playerIds = devices.map(d => d.player_id);
 
+  const logData = {
+    title,
+    message,
+    target_type: "user",
+    target_value: userId.toString(),
+    user_id: userId 
+  };
+
   if (playerIds.length === 0) {
-    await NotificationLog.create({
-      title,
-      message,
-      target_type: "user",
-      target_value: userId.toString(),
-      status: "failed"
-    });
+    logData.status = "failed";
+    await NotificationLog.create(logData);
     return { success: false, message: `لا توجد أجهزة للمستخدم ${userId}` };
   }
 
   try {
     await sendNotificationToDevices(playerIds, message, title);
-    await NotificationLog.create({
-      title,
-      message,
-      target_type: "user",
-      target_value: userId.toString(),
-      status: "sent"
-    });
+    logData.status = "sent";
+    await NotificationLog.create(logData);
     return { success: true };
   } catch (err) {
     console.error(`❌ Error sending notification to user ${userId}:`, err.message);
-    await NotificationLog.create({
-      title,
-      message,
-      target_type: "user",
-      target_value: userId.toString(),
-      status: "failed"
-    });
+    logData.status = "failed";
+    await NotificationLog.create(logData);
     return { success: false, error: err.message };
   }
 };
