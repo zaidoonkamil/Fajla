@@ -2,7 +2,7 @@ const express = require("express");
 const Ads = require("../models/ads");
 const router = express.Router();
 const upload = require("../middlewares/uploads");
-const { sendNotificationToRole } = require('../services/notifications');
+const { sendNotificationToAll  } = require('../services/notifications');
 
 router.post("/ads", upload.array("images", 5), async (req, res) => {
   try {
@@ -20,7 +20,7 @@ router.post("/ads", upload.array("images", 5), async (req, res) => {
     });
 
     
-    await sendNotificationToRole(description, name );
+    await sendNotificationToAll (description, name );
 
     res.status(201).json({ message: "ads created successfully", ads });
   } catch (err) {
