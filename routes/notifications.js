@@ -33,67 +33,32 @@ router.post("/register-device", async (req, res) => {
   }
 });
 
-
-router.post('/send-notification', upload.none(), async (req, res) => {
-  const { title, message } = req.body;
-
-  if (!message) {
-    return res.status(400).json({ error: 'message مطلوب' });
-  }
-
+router.post("/notification", upload.none(), async (req, res) => {
   try {
-    await sendNotification(message, title || "Notification");
-    res.json({ success: true, message: '✅ Notification sent to all devices!' });
-  } catch (error) {
-    console.error("❌ Error sending notification to all:", error);
-    res.status(500).json({ error: "حدث خطأ أثناء إرسال الإشعار" });
-  }
-});
+    const { target_type, target_value, message, title } = req.body;
 
-
-router.post('/send-notification-to-role', upload.none(), async (req, res) => {
-  const { title, message, role } = req.body;
-
-  if (!message) return res.status(400).json({ error: 'message مطلوب' });
-  if (!role) return res.status(400).json({ error: 'role مطلوب' });
-
-  try {
-    const devices = await UserDevice.findAll({
-      include: [{ model: User, as: 'user', where: { role } }]
-    });
-
-    const playerIds = devices.map(d => d.player_id);
-
-    for (const device of devices) {
-      await NotificationLog.create({
-        title: title || "Notification",
-        message,
-        target_type: "role",
-        target_value: role,
-        user_id: device.user_id,
-        status: "sent"
-      });
+    if (!target_type || !message || !title) {
+      return res.status(400).json({ error: "الحقول مطلوبة: target_type, message, title" });
     }
 
-    if (playerIds.length > 0) {
-      await axios.post('https://onesignal.com/api/v1/notifications', {
-        app_id: process.env.ONESIGNAL_APP_ID,
-        include_player_ids: playerIds,
-        contents: { en: message },
-        headings: { en: title || "Notification" },
-      }, {
-        headers: {
-          'Authorization': `Basic ${process.env.ONESIGNAL_API_KEY}`,
-          'Content-Type': 'application/json',
-        }
-      });
+    let result;
+
+    if (target_type === "all") {
+      result = await sendNotificationToAll(message, title);
+    } else if (target_type === "role") {
+      if (!target_value) return res.status(400).json({ error: "يجب إدخال اسم الدور" });
+      result = await sendNotificationToRole(target_value, message, title);
+    } else if (target_type === "user") {
+      if (!target_value) return res.status(400).json({ error: "يجب إدخال userId" });
+      result = await sendNotificationToUser(target_value, message, title);
+    } else {
+      return res.status(400).json({ error: "target_type غير صحيح (all, role, user)" });
     }
 
-    res.json({ success: true, message: `تم إرسال الإشعار لجميع المستخدمين برول ${role}` });
-
-  } catch (error) {
-    console.error(`❌ Error sending notification to role ${role}:`, error.response?.data || error.message);
-    res.status(500).json({ error: 'حدث خطأ أثناء إرسال الإشعار' });
+    res.json({ success: true, result });
+  } catch (err) {
+    console.error("❌ Error sending notification:", err);
+    res.status(500).json({ error: "خطأ في السيرفر", details: err.message });
   }
 });
 
