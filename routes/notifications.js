@@ -9,54 +9,6 @@ const NotificationLog = require("../models/notification_log");
 const { Op } = require("sequelize");
 const { sendNotificationToAll,  sendNotificationToRole, sendNotificationToUser} = require('../services/notifications');
 
-/*
-const { Sequelize } = require('sequelize');
-
-const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
-  {
-    host: process.env.DB_HOST || 'localhost',
-    dialect: 'mysql',
-    logging: false,
-  }
-);
-
-router.get("/cleanup-indexes", async (req, res) => {
-  try {
-    // نتأكد من الاتصال
-    await sequelize.authenticate();
-
-    // 1. جلب كل الفهارس على العمود player_id
-    const [indexes] = await sequelize.query(
-      "SHOW INDEX FROM user_devices WHERE Column_name = 'player_id'"
-    );
-
-    if (indexes.length <= 1) {
-      return res.json({ message: "✅ لا توجد فهارس مكررة، كل شيء نظيف" });
-    }
-
-    // 2. نحتفظ بأول index ونمسح الباقي
-    const keep = indexes[0].Key_name;
-    const duplicates = indexes.slice(1).map(i => i.Key_name);
-
-    for (const dup of duplicates) {
-      await sequelize.query(`ALTER TABLE user_devices DROP INDEX \`${dup}\``);
-    }
-
-    return res.json({
-      message: "🧹 تم تنظيف الفهارس المكررة",
-      kept: keep,
-      dropped: duplicates
-    });
-  } catch (err) {
-    console.error("❌ Error cleaning indexes:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-*/
-
 router.post("/register-device", async (req, res) => {
   const { user_id, player_id } = req.body;
 
@@ -109,7 +61,6 @@ router.post("/notification", upload.none(), async (req, res) => {
     res.status(500).json({ error: "خطأ في السيرفر", details: err.message });
   }
 });
-
 
 router.get("/notifications-log", async (req, res) => {
   const { role, user_id, page = 1, limit = 10 } = req.query;
