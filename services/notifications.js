@@ -51,39 +51,64 @@ const sendNotificationToRole = async (role, message, title = "Notification") => 
   if (!role) throw new Error("role مطلوب");
 
   try {
-    const users = await User.findAll({ where: { role }, attributes: ['id'] });
+    const devices = await UserDevice.findAll({
+      include: [{
+        model: User,
+        as: "user",
+        where: { role }
+      }]
+    });
 
-    for (const user of users) {
-      const devices = await UserDevice.findAll({ where: { user_id: user.id } });
-      const playerIds = devices.map(d => d.player_id);
+    if (!devices || devices.length === 0) {
+      return { success: false, message: `لا توجد أجهزة للمستخدمين برول ${role}` };
+    }
 
-      await NotificationLog.create({
-        title,
-        message,
-        target_type: "role",
-        target_value: role,
-        user_id: user.id,
-        status: playerIds.length > 0 ? "sent" : "failed"
-      });
+    const devicesByUser = {};
+    devices.forEach(device => {
+      const userId = device.user_id;
+      if (!devicesByUser[userId]) devicesByUser[userId] = [];
+      devicesByUser[userId].push(device.player_id);
+    });
 
-      if (playerIds.length > 0) {
-        await axios.post('https://onesignal.com/api/v1/notifications', {
-          app_id: process.env.ONESIGNAL_APP_ID,
-          include_player_ids: playerIds,
-          contents: { en: message },
-          headings: { en: title },
-        }, {
-          headers: {
-            'Authorization': `Basic ${process.env.ONESIGNAL_API_KEY}`,
-            'Content-Type': 'application/json',
-          }
+    for (const [userId, playerIds] of Object.entries(devicesByUser)) {
+      const url = 'https://onesignal.com/api/v1/notifications';
+      const headers = {
+        'Authorization': `Basic ${process.env.ONESIGNAL_API_KEY}`,
+        'Content-Type': 'application/json',
+      };
+      const data = {
+        app_id: process.env.ONESIGNAL_APP_ID,
+        include_player_ids: playerIds,
+        contents: { en: message },
+        headings: { en: title },
+      };
+
+      try {
+        await axios.post(url, data, { headers });
+        await NotificationLog.create({
+          title,
+          message,
+          target_type: "user",
+          target_value: userId.toString(),
+          status: "sent"
+        });
+      } catch (err) {
+        console.error(`❌ Error sending notification to user ${userId}:`, err.response ? err.response.data : err.message);
+        await NotificationLog.create({
+          title,
+          message,
+          target_type: "user",
+          target_value: userId.toString(),
+          status: "failed"
         });
       }
     }
 
-    console.log(`✅ Notification sent to all users with role ${role} and logged`);
+    return { success: true };
+
   } catch (error) {
-    console.error(`❌ Error sending notification to role ${role}:`, error.response?.data || error.message);
+    console.error(`❌ Error sending notifications to role ${role}:`, error);
+    return { success: false, error: error.message };
   }
 };
 
