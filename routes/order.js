@@ -4,6 +4,7 @@ const { Order, OrderItem, Product, Basket, BasketItem, User} = require("../model
 const multer = require("multer");
 const uploads = multer();
 const { Op } = require("sequelize");
+const { sendNotificationToUser } = require("../services/notifications");
 
 router.post("/orders/:userId", uploads.none(), async (req, res) => {
   const userId = req.params.userId;
@@ -26,7 +27,8 @@ router.post("/orders/:userId", uploads.none(), async (req, res) => {
 
     const productIds = products.map(p => p.productId);
     const dbProducts = await Product.findAll({
-      where: { id: productIds }
+      where: { id: productIds },
+      include: [{ model: User, as: "seller" }]
     });
 
     if (dbProducts.length !== products.length) {
@@ -44,17 +46,24 @@ router.post("/orders/:userId", uploads.none(), async (req, res) => {
       phone,
       address,
       totalPrice,
-      status: "قيد الانتضار"
+      status: "قيد الانتظار"
     });
 
     for (const item of products) {
       const prod = dbProducts.find(p => p.id === item.productId);
+
       await OrderItem.create({
         orderId: order.id,
         productId: item.productId,
         quantity: item.quantity,
         priceAtOrder: prod.price,
       });
+
+      if (prod.userId) {
+        const message = `تم طلب منتجك: ${prod.name} (الكمية: ${item.quantity})`;
+        const title = "طلب جديد";
+        await sendNotificationToUser(prod.userId, message, title);
+      }
     }
 
     const basket = await Basket.findOne({ where: { userId } });
@@ -71,6 +80,7 @@ router.post("/orders/:userId", uploads.none(), async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 
 router.patch("/orders/:orderId/status", uploads.none(), async (req, res) => {
   const { orderId } = req.params;
