@@ -90,7 +90,10 @@ router.patch("/orders/:orderId/status", uploads.none(), async (req, res) => {
   }
 
   try {
-    const order = await Order.findByPk(orderId);
+    
+    const order = await Order.findByPk(orderId, {
+      include: [{ model: User, as: "user" }]
+    });
 
     if (!order) {
       return res.status(404).json({ error: "الطلب غير موجود" });
@@ -99,6 +102,12 @@ router.patch("/orders/:orderId/status", uploads.none(), async (req, res) => {
     order.status = status;
     await order.save();
 
+    if (order.user) {
+      const message = `تم تحديث حالة طلبك إلى: ${status}`;
+      const title = "تحديث حالة الطلب";
+      await sendNotificationToUser(order.user.id, message, title);
+    }
+    
     res.status(200).json({ message: "تم تحديث حالة الطلب", order });
   } catch (error) {
     console.error("❌ Error updating order status:", error);
