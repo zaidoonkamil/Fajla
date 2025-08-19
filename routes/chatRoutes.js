@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const { ChatMessage, User } = require("../models");
 const { Op } = require("sequelize");
+const { sendNotificationToRole } = require("../utils/notifications");
+const { sendNotificationToUser } = require("../utils/notifications"); 
 
 function initChatSocket(io) {
   const userSockets = new Map();
@@ -52,8 +54,20 @@ function initChatSocket(io) {
         if (!receiverId) {
           const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
           recipients = [...admins.map(a => a.id), senderId];
+          await sendNotificationToRole(
+            "admin",
+            fullMessage.message,
+            `رسالة جديدة من ${fullMessage.sender?.name || "مستخدم"}`
+          );
         } else {
           recipients = [senderId, receiverId];
+          if (sender.role === "admin") {
+            await sendNotificationToUser(
+              receiverId,
+              fullMessage.message,
+              `رسالة جديدة من الأدمن ${fullMessage.sender?.name || ""}`
+            );
+          }
         }
 
         recipients.forEach(id => {
