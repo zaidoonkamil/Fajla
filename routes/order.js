@@ -92,7 +92,7 @@ router.patch("/orders/:orderId/status", uploads.none(), async (req, res) => {
   try {
     
     const order = await Order.findByPk(orderId, {
-      include: [{ model: User, as: "user" }]
+      include: [{ model: User }]
     });
 
     if (!order) {
@@ -107,7 +107,7 @@ router.patch("/orders/:orderId/status", uploads.none(), async (req, res) => {
       const title = "تحديث حالة الطلب";
       await sendNotificationToUser(order.user.id, message, title);
     }
-    
+
     res.status(200).json({ message: "تم تحديث حالة الطلب", order });
   } catch (error) {
     console.error("❌ Error updating order status:", error);
