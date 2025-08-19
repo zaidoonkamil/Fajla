@@ -2,8 +2,8 @@ const express = require("express");
 const router = express.Router();
 const { ChatMessage, User } = require("../models");
 const { Op } = require("sequelize");
-const { sendNotificationToRole } = require("../utils/notifications");
-const { sendNotificationToUser } = require("../utils/notifications"); 
+const { sendNotificationToRole } = require("../services/notifications.js"); 
+const { sendNotificationToUser } = require("../services/notifications.js"); 
 
 function initChatSocket(io) {
   const userSockets = new Map();
