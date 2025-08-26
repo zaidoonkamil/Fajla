@@ -40,7 +40,7 @@ router.get("/products/:id", async (req, res) => {
   try {
     let { page, limit } = req.query;
     page = parseInt(page) || 1;
-    limit = parseInt(limit) || 10;
+    limit = parseInt(limit) || 40;
     const offset = (page - 1) * limit;
 
     const { count, rows: products } = await Product.findAndCountAll({
