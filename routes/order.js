@@ -123,7 +123,7 @@ router.get("/orders/:userId", uploads.none(), async (req, res) => {
   }
 
   let page = parseInt(req.query.page) || 1;
-  let limit = parseInt(req.query.limit) || 10;
+  let limit = parseInt(req.query.limit) || 20;
   if (page < 1) page = 1;
 
   const offset = (page - 1) * limit;
@@ -174,7 +174,7 @@ router.get("/orders/admin/status", async (req, res) => {
   const allowedStatuses = ["قيد الانتضار", "قيد التوصيل", "مكتمل", "ملغي"];
   const status = (req.query.status || "").trim();
   const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
+  const limit = parseInt(req.query.limit) || 40;
   const offset = (page - 1) * limit;
 
   if (!allowedStatuses.includes(status)) {
