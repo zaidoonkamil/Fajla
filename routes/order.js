@@ -5,6 +5,8 @@ const multer = require("multer");
 const uploads = multer();
 const { Op } = require("sequelize");
 const { sendNotificationToUser } = require("../services/notifications");
+const multer = require("multer");
+const upload = multer();
 
 router.get("/orders/admin/status", async (req, res) => {
   const allowedStatuses = ["قيد الانتضار", "قيد التوصيل", "مكتمل", "ملغي"];
