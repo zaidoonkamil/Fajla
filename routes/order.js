@@ -335,7 +335,7 @@ router.get("/orders/:userId", uploads.none(), async (req, res) => {
         totalPrice,
         status: order.status,
       };
-    });
+    }).filter(order => order.totalItems > 0);
 
     const totalPages = Math.ceil(count / limit);
 
