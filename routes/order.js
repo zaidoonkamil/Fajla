@@ -71,7 +71,7 @@ router.get("/orders/admin/status", async (req, res) => {
           },
         })),
       };
-    });
+    }).filter(order => order.items.length > 0);
 
     const totalPages = Math.ceil(totalItems / limit);
 
