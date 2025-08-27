@@ -83,7 +83,10 @@ const sendNotificationToRole = async (role, message, title = "Notification") => 
 };
 
 const sendNotificationToUser = async (userId, message, title = "Notification") => {
-  const devices = await UserDevice.findAll({ where: { user_id: userId } });
+  const devices = await UserDevice.findAll({
+    include: [{ model: User, as: "user", where: { id: userId } }]
+  });
+  
   const playerIds = devices.map(d => d.player_id);
 
   const logData = {
