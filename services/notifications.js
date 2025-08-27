@@ -84,9 +84,11 @@ const sendNotificationToRole = async (role, message, title = "Notification") => 
 
 const sendNotificationToUser = async (userId, message, title = "Notification") => {
   const devices = await UserDevice.findAll({
-    include: [{ model: User, as: "user", where: { id: userId } }]
+    where: { user_id: userId }   // جرّب userId إذا ما اشتغل
   });
-  
+
+  console.log("🔎 Devices for user:", userId, devices.map(d => d.toJSON()));
+
   const playerIds = devices.map(d => d.player_id);
 
   const logData = {
@@ -94,7 +96,7 @@ const sendNotificationToUser = async (userId, message, title = "Notification") =
     message,
     target_type: "user",
     target_value: userId.toString(),
-    user_id: userId, 
+    user_id: userId,
   };
 
   if (playerIds.length === 0) {
@@ -115,6 +117,7 @@ const sendNotificationToUser = async (userId, message, title = "Notification") =
     return { success: false, error: err.message };
   }
 };
+
 
 
 module.exports = {
