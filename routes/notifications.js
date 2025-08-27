@@ -9,6 +9,31 @@ const NotificationLog = require("../models/notification_log");
 const { Op } = require("sequelize");
 const { sendNotificationToAll,  sendNotificationToRole, sendNotificationToUser} = require('../services/notifications');
 
+router.post("/notification/user", upload.none(), async (req, res) => {
+  try {
+    const { user_id, message, title } = req.body;
+
+    if (!user_id || !message || !title) {
+      return res.status(400).json({ error: "الحقول مطلوبة: user_id, message, title" });
+    }
+
+    const result = await sendNotificationToUser(user_id, message, title);
+
+    await NotificationLog.create({
+      target_type: "user",
+      target_value: user_id.toString(),
+      message,
+      title,
+    });
+
+    res.json({ success: true, result });
+  } catch (err) {
+    console.error("❌ Error sending user notification:", err);
+    res.status(500).json({ error: "خطأ في السيرفر", details: err.message });
+  }
+});
+
+
 router.post("/register-device", async (req, res) => {
   const { user_id, player_id } = req.body;
 
