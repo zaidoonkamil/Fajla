@@ -275,7 +275,8 @@ router.patch("/orders/:orderId/status", uploads.none(), async (req, res) => {
     if (order.user) {
       const message = `تم تحديث حالة طلبك إلى: ${status}`;
       const title = "تحديث حالة الطلب";
-      await sendNotificationToUser(order.user.id, message, title);
+      const result = await sendNotificationToUser(order.user.id, message, title);
+      console.log(`🔔 Notification result for user ${order.user.id}:`, result);
     }
 
     res.status(200).json({ message: "تم تحديث حالة الطلب", order });
