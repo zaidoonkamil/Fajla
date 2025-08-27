@@ -33,7 +33,6 @@ router.post("/notification/user", upload.none(), async (req, res) => {
   }
 });
 
-
 router.post("/register-device", async (req, res) => {
   const { user_id, player_id } = req.body;
 
