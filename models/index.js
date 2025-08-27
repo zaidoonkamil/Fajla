@@ -36,7 +36,6 @@ User.hasMany(Product, { foreignKey: "userId", as: "products" , onDelete: 'CASCAD
 User.belongsToMany(Product, { through: Favorite, foreignKey: "userId", as: "favoriteProducts" , onDelete: 'CASCADE' });
 Product.belongsToMany(User, { through: Favorite, foreignKey: "productId", as: "favoritedByUsers", onDelete: 'CASCADE' });
 
-// علاقات الرسائل
 ChatMessage.belongsTo(User, { as: "sender", foreignKey: "senderId" , onDelete: 'CASCADE'});
 ChatMessage.belongsTo(User, { as: "receiver", foreignKey: "receiverId" , onDelete: 'CASCADE' });
 
