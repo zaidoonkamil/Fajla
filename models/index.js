@@ -9,8 +9,8 @@ const Order = require("./Order");
 const OrderItem = require("./OrderItem");
 const ChatMessage = require("./ChatMessage");
 
-User.hasMany(Order, { foreignKey: "userId", onDelete: "CASCADE" });
-Order.belongsTo(User, { foreignKey: "userId" });
+User.hasMany(Order, { foreignKey: "userId", as: "orders", onDelete: "CASCADE" });
+Order.belongsTo(User, { foreignKey: "userId", as: "user", onDelete: "CASCADE" });
 
 Order.hasMany(OrderItem, { foreignKey: "orderId", onDelete: "CASCADE" });
 OrderItem.belongsTo(Order, { foreignKey: "orderId" });

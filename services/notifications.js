@@ -84,7 +84,7 @@ const sendNotificationToRole = async (role, message, title = "Notification") => 
 
 const sendNotificationToUser = async (userId, message, title = "Notification") => {
   const devices = await UserDevice.findAll({
-    where: { user_id: userId }   // جرّب userId إذا ما اشتغل
+    where: { user_id: userId }  
   });
 
   console.log("🔎 Devices for user:", userId, devices.map(d => d.toJSON()));

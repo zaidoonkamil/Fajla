@@ -249,7 +249,7 @@ router.post("/orders/:userId", uploads.none(), async (req, res) => {
   }
 });
 
-router.patch("/orders/:orderId/status", uploads.none(), async (req, res) => {
+router.patch("/orders/:orderId/status", upload.none(), async (req, res) => {
   const { orderId } = req.params;
   const { status } = req.body;
 
@@ -260,9 +260,8 @@ router.patch("/orders/:orderId/status", uploads.none(), async (req, res) => {
   }
 
   try {
-    
     const order = await Order.findByPk(orderId, {
-      include: [{ model: User }]
+      include: [{ model: User, as: "user" }]
     });
 
     if (!order) {
@@ -272,19 +271,30 @@ router.patch("/orders/:orderId/status", uploads.none(), async (req, res) => {
     order.status = status;
     await order.save();
 
+    let notificationResult = null;
+
     if (order.user) {
       const message = `تم تحديث حالة طلبك إلى: ${status}`;
       const title = "تحديث حالة الطلب";
-      const result = await sendNotificationToUser(order.user.id, message, title);
-      console.log(`🔔 Notification result for user ${order.user.id}:`, result);
+      notificationResult = await sendNotificationToUser(order.user.id, message, title);
+
+      console.log("🔔 Notification result:", notificationResult);
+    } else {
+      console.log("⚠️ الطلب موجود لكن ما رجع معه مستخدم مرتبط.");
     }
 
-    res.status(200).json({ message: "تم تحديث حالة الطلب", order });
+    res.status(200).json({ 
+      message: "تم تحديث حالة الطلب", 
+      order, 
+      notificationResult 
+    });
+
   } catch (error) {
     console.error("❌ Error updating order status:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 
 router.get("/orders/:userId", uploads.none(), async (req, res) => {
   const userId = req.params.userId; 
