@@ -61,7 +61,7 @@ function initChatSocket(io) {
           );
         } else {
           recipients = [senderId, receiverId];
-          if (sender.role === "admin") {
+          if (fullMessage.sender.role === "admin") {
             await sendNotificationToUser(
               receiverId,
               fullMessage.message,
