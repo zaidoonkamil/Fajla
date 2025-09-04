@@ -41,15 +41,13 @@ function initChatSocket(io) {
         const adminIds = admins.map(a => a.id);
 
         const messages = await ChatMessage.findAll({
-          where: {
-            [Op.or]: [
-              // رسائل المستخدم إلى الأدمن
-              { senderId: userId, receiverId: null },
-              { senderId: userId, receiverId: { [Op.in]: adminIds } },
-              // رسائل أي أدمن إلى المستخدم
-              { senderId: { [Op.in]: adminIds }, receiverId: userId },
-            ],
-          },
+        where: {
+          [Op.or]: [
+            { senderId: userId, receiverId: null },               
+            { senderId: userId, receiverId: { [Op.in]: adminIds } },
+            { senderId: { [Op.in]: adminIds }, receiverId: userId }, 
+          ],
+        },
           order: [["createdAt", "ASC"]],
           include: [
             { model: User, as: "sender", attributes: ["id", "name", "role"] },
