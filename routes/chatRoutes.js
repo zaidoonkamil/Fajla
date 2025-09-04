@@ -16,44 +16,84 @@ function initChatSocket(io) {
     if (!userSockets.has(userId)) userSockets.set(userId, []);
     userSockets.get(userId).push(socket.id);
 
+    socket.on("getMessages", async (payload = {}) => {
+      try {
+        const { userId, receiverId } = payload;
+        if (!userId) return;
+
+        if (receiverId) {
+          const messages = await ChatMessage.findAll({
+            where: {
+              [Op.or]: [
+                { senderId: userId, receiverId: receiverId },
+                { senderId: receiverId, receiverId: userId },
+              ],
+            },
+            order: [["createdAt", "ASC"]],
+            include: [
+              { model: User, as: "sender", attributes: ["id", "name", "role"] },
+              { model: User, as: "receiver", attributes: ["id", "name", "role"] },
+            ],
+          });
+          return socket.emit("messagesLoaded", messages);
+        }
+
+        // لو المحادثة مع الأدمن (receiverId = null)
+        const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
+        const adminIds = admins.map(a => a.id);
+
+        const messages = await ChatMessage.findAll({
+        where: {
+          [Op.or]: [
+            { senderId: userId, receiverId: null },               
+            { senderId: userId, receiverId: { [Op.in]: adminIds } },
+            { senderId: { [Op.in]: adminIds }, receiverId: userId }, 
+          ],
+        },
+          order: [["createdAt", "ASC"]],
+          include: [
+            { model: User, as: "sender", attributes: ["id", "name", "role"] },
+            { model: User, as: "receiver", attributes: ["id", "name", "role"] },
+          ],
+        });
+
+        socket.emit("messagesLoaded", messages);
+      } catch (err) {
+        console.error("❌ خطأ في جلب الرسائل:", err);
+      }
+    });
+
+
     socket.on("sendMessage", async (data) => {
       try {
         const { senderId, receiverId, message } = data;
         if (!senderId || !message) return;
 
-        // إنشاء الرسالة في قاعدة البيانات
         const newMessage = await ChatMessage.create({
           senderId,
           receiverId: receiverId || null,
           message,
         });
 
-        // جلب الرسالة مع بيانات المرسل والمستقبل
         const fullMessage = await ChatMessage.findOne({
           where: { id: newMessage.id },
           include: [
-            { model: User, as: "sender", attributes: ["id", "name", "role"] },
+            { model: User, as: "sender", attributes: ["id", "name"] },
             { model: User, as: "receiver", attributes: ["id", "name"] },
           ],
         });
 
         let recipients = [];
-
         if (!receiverId) {
-          // إذا الرسالة للأدمن فقط
           const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
-          recipients = admins.map(a => a.id);
-
+          recipients = [...admins.map(a => a.id), senderId];
           await sendNotificationToRole(
             "admin",
             fullMessage.message,
             `رسالة جديدة من ${fullMessage.sender?.name || "مستخدم"}`
           );
-
         } else {
-          // رسالة خاصة بين المرسل والمستقبل
           recipients = [senderId, receiverId];
-
           if (fullMessage.sender.role === "admin") {
             await sendNotificationToUser(
               receiverId,
@@ -63,7 +103,6 @@ function initChatSocket(io) {
           }
         }
 
-        // إرسال الرسالة فقط لكل socket متصل
         recipients.forEach(id => {
           const sockets = userSockets.get(id.toString()) || [];
           sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
@@ -73,7 +112,6 @@ function initChatSocket(io) {
         console.error("❌ خطأ في إرسال الرسالة:", err);
       }
     });
-
 
     socket.on("disconnect", () => {
       console.log(`❌ مستخدم قطع الاتصال: ${userId}`);
