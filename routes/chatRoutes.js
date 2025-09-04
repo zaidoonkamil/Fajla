@@ -16,105 +16,44 @@ function initChatSocket(io) {
     if (!userSockets.has(userId)) userSockets.set(userId, []);
     userSockets.get(userId).push(socket.id);
 
-socket.on("sendMessage", async (data) => {
-  try {
-    const { senderId, receiverId, message } = data;
-    if (!senderId || !message) return;
-
-    // إنشاء الرسالة في قاعدة البيانات
-    const newMessage = await ChatMessage.create({
-      senderId,
-      receiverId: receiverId || null,
-      message,
-    });
-
-    // جلب الرسالة مع بيانات المرسل والمستقبل
-    const fullMessage = await ChatMessage.findOne({
-      where: { id: newMessage.id },
-      include: [
-        { model: User, as: "sender", attributes: ["id", "name", "role"] },
-        { model: User, as: "receiver", attributes: ["id", "name"] },
-      ],
-    });
-
-    let recipients = [];
-
-    if (!receiverId) {
-      // إذا الرسالة للأدمن فقط
-      const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
-      recipients = admins.map(a => a.id);
-
-      await sendNotificationToRole(
-        "admin",
-        fullMessage.message,
-        `رسالة جديدة من ${fullMessage.sender?.name || "مستخدم"}`
-      );
-
-    } else {
-      // رسالة خاصة بين المرسل والمستقبل
-      recipients = [senderId, receiverId];
-
-      if (fullMessage.sender.role === "admin") {
-        await sendNotificationToUser(
-          receiverId,
-          fullMessage.message,
-          `رسالة جديدة من الأدمن ${fullMessage.sender?.name || ""}`
-        );
-      }
-    }
-
-    // إرسال الرسالة فقط لكل socket متصل
-    recipients.forEach(id => {
-      const sockets = userSockets.get(id.toString()) || [];
-      sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
-    });
-
-  } catch (err) {
-    console.error("❌ خطأ في إرسال الرسالة:", err);
-  }
-});
-
-
-
     socket.on("sendMessage", async (data) => {
       try {
         const { senderId, receiverId, message } = data;
         if (!senderId || !message) return;
 
+        // إنشاء الرسالة في قاعدة البيانات
         const newMessage = await ChatMessage.create({
           senderId,
           receiverId: receiverId || null,
           message,
         });
 
+        // جلب الرسالة مع بيانات المرسل والمستقبل
         const fullMessage = await ChatMessage.findOne({
           where: { id: newMessage.id },
           include: [
-            { model: User, as: "sender", attributes: ["id", "name"] },
+            { model: User, as: "sender", attributes: ["id", "name", "role"] },
             { model: User, as: "receiver", attributes: ["id", "name"] },
           ],
         });
 
         let recipients = [];
+
         if (!receiverId) {
+          // إذا الرسالة للأدمن فقط
           const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
           recipients = admins.map(a => a.id);
-          recipients.forEach(id => {
-            const sockets = userSockets.get(id.toString()) || [];
-            sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
-          });
+
           await sendNotificationToRole(
             "admin",
             fullMessage.message,
             `رسالة جديدة من ${fullMessage.sender?.name || "مستخدم"}`
           );
+
         } else {
+          // رسالة خاصة بين المرسل والمستقبل
           recipients = [senderId, receiverId];
-          recipients = [senderId, receiverId];
-          recipients.forEach(id => {
-            const sockets = userSockets.get(id.toString()) || [];
-            sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
-          });
+
           if (fullMessage.sender.role === "admin") {
             await sendNotificationToUser(
               receiverId,
@@ -124,6 +63,7 @@ socket.on("sendMessage", async (data) => {
           }
         }
 
+        // إرسال الرسالة فقط لكل socket متصل
         recipients.forEach(id => {
           const sockets = userSockets.get(id.toString()) || [];
           sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
@@ -133,6 +73,7 @@ socket.on("sendMessage", async (data) => {
         console.error("❌ خطأ في إرسال الرسالة:", err);
       }
     });
+
 
     socket.on("disconnect", () => {
       console.log(`❌ مستخدم قطع الاتصال: ${userId}`);
