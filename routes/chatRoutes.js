@@ -18,6 +18,7 @@ function initChatSocket(io) {
 
     socket.on("getMessages", async (payload = {}) => {
       try {
+        
         const { userId, receiverId } = payload;
         if (!userId) return;
 
