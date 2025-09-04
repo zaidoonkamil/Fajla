@@ -154,7 +154,7 @@ router.post("/users", uploadImage.array("images", 5), async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, saltRounds);
         const images = req.files && Array.isArray(req.files) ? req.files.map(file => file.filename) : [];
-        const isVerified = (role === "admin" || role === "agent") ? true : false;
+        const isVerified = (role === "admin" || role === "agent") ? true : true;// تعديل ليكون true دائماً
 
         const user = await User.create({ 
           name, 
