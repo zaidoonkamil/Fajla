@@ -16,9 +16,13 @@ function initChatSocket(io) {
     if (!userSockets.has(userId)) userSockets.set(userId, []);
     userSockets.get(userId).push(socket.id);
 
-    socket.on("getMessages", async ({ userId, receiverId }) => {
+    socket.on("getMessages", async (payload = {}) => {
       try {
-        // لو المحادثة مع مستخدم محدد
+        
+        console.log("📥 getMessages payload:", payload);
+        const { userId, receiverId } = payload;
+        if (!userId) return;
+
         if (receiverId) {
           const messages = await ChatMessage.findAll({
             where: {
