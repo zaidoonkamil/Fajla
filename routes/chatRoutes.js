@@ -16,54 +16,59 @@ function initChatSocket(io) {
     if (!userSockets.has(userId)) userSockets.set(userId, []);
     userSockets.get(userId).push(socket.id);
 
-    socket.on("getMessages", async (payload = {}) => {
+    socket.on("sendMessage", async (data) => {
       try {
-        
-        console.log("📥 getMessages payload:", payload);
-        const { userId, receiverId } = payload;
-        if (!userId) return;
+        const { senderId, receiverId, message } = data;
+        if (!senderId || !message) return;
 
-        if (receiverId) {
-          const messages = await ChatMessage.findAll({
-            where: {
-              [Op.or]: [
-                { senderId: userId, receiverId: receiverId },
-                { senderId: receiverId, receiverId: userId },
-              ],
-            },
-            order: [["createdAt", "ASC"]],
-            include: [
-              { model: User, as: "sender", attributes: ["id", "name", "role"] },
-              { model: User, as: "receiver", attributes: ["id", "name", "role"] },
-            ],
-          });
-          return socket.emit("messagesLoaded", messages);
-        }
+        const newMessage = await ChatMessage.create({
+          senderId,
+          receiverId: receiverId || null,
+          message,
+        });
 
-        // لو المحادثة مع الأدمن (receiverId = null)
-        const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
-        const adminIds = admins.map(a => a.id);
-
-        const messages = await ChatMessage.findAll({
-        where: {
-          [Op.or]: [
-            { senderId: userId, receiverId: null },               
-            { senderId: userId, receiverId: { [Op.in]: adminIds } },
-            { senderId: { [Op.in]: adminIds }, receiverId: userId }, 
-          ],
-        },
-          order: [["createdAt", "ASC"]],
+        const fullMessage = await ChatMessage.findOne({
+          where: { id: newMessage.id },
           include: [
             { model: User, as: "sender", attributes: ["id", "name", "role"] },
-            { model: User, as: "receiver", attributes: ["id", "name", "role"] },
+            { model: User, as: "receiver", attributes: ["id", "name"] },
           ],
         });
 
-        socket.emit("messagesLoaded", messages);
+        let recipients = [];
+
+        if (!receiverId) {
+          // رسالة لكل الأدمنات
+          const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
+          recipients = admins.map(a => a.id);
+          await sendNotificationToRole(
+            "admin",
+            fullMessage.message,
+            `رسالة جديدة من ${fullMessage.sender?.name || "مستخدم"}`
+          );
+        } else {
+          // رسالة خاصة بين المرسل والمستقبل
+          recipients = [senderId, receiverId];
+          if (fullMessage.sender.role === "admin") {
+            await sendNotificationToUser(
+              receiverId,
+              fullMessage.message,
+              `رسالة جديدة من الأدمن ${fullMessage.sender?.name || ""}`
+            );
+          }
+        }
+
+        // إرسال الرسالة لجميع الـ recipients مرة واحدة
+        recipients.forEach(id => {
+          const sockets = userSockets.get(id.toString()) || [];
+          sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
+        });
+
       } catch (err) {
-        console.error("❌ خطأ في جلب الرسائل:", err);
+        console.error("❌ خطأ في إرسال الرسالة:", err);
       }
     });
+
 
 
     socket.on("sendMessage", async (data) => {
@@ -88,7 +93,11 @@ function initChatSocket(io) {
         let recipients = [];
         if (!receiverId) {
           const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
-          recipients = [...admins.map(a => a.id), senderId];
+          recipients = admins.map(a => a.id);
+          recipients.forEach(id => {
+            const sockets = userSockets.get(id.toString()) || [];
+            sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
+          });
           await sendNotificationToRole(
             "admin",
             fullMessage.message,
@@ -96,6 +105,11 @@ function initChatSocket(io) {
           );
         } else {
           recipients = [senderId, receiverId];
+          recipients = [senderId, receiverId];
+          recipients.forEach(id => {
+            const sockets = userSockets.get(id.toString()) || [];
+            sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
+          });
           if (fullMessage.sender.role === "admin") {
             await sendNotificationToUser(
               receiverId,
