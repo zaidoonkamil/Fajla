@@ -18,33 +18,51 @@ function initChatSocket(io) {
 
     socket.on("getMessages", async ({ userId, receiverId }) => {
       try {
-        const whereClause = receiverId
-          ? {
+        // لو المحادثة مع مستخدم محدد
+        if (receiverId) {
+          const messages = await ChatMessage.findAll({
+            where: {
               [Op.or]: [
                 { senderId: userId, receiverId: receiverId },
                 { senderId: receiverId, receiverId: userId },
               ],
-            }
-          : {
-              [Op.or]: [
-                { senderId: userId, receiverId: null }, 
-                { senderId: { [Op.in]: adminIds }, receiverId: userId },
-              ],
-            };
+            },
+            order: [["createdAt", "ASC"]],
+            include: [
+              { model: User, as: "sender", attributes: ["id", "name", "role"] },
+              { model: User, as: "receiver", attributes: ["id", "name", "role"] },
+            ],
+          });
+          return socket.emit("messagesLoaded", messages);
+        }
+
+        // لو المحادثة مع الأدمن (receiverId = null)
+        const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
+        const adminIds = admins.map(a => a.id);
 
         const messages = await ChatMessage.findAll({
-          where: whereClause,
+          where: {
+            [Op.or]: [
+              // رسائل المستخدم إلى الأدمن
+              { senderId: userId, receiverId: null },
+              { senderId: userId, receiverId: { [Op.in]: adminIds } },
+              // رسائل أي أدمن إلى المستخدم
+              { senderId: { [Op.in]: adminIds }, receiverId: userId },
+            ],
+          },
           order: [["createdAt", "ASC"]],
           include: [
             { model: User, as: "sender", attributes: ["id", "name", "role"] },
             { model: User, as: "receiver", attributes: ["id", "name", "role"] },
           ],
         });
+
         socket.emit("messagesLoaded", messages);
       } catch (err) {
         console.error("❌ خطأ في جلب الرسائل:", err);
       }
     });
+
 
     socket.on("sendMessage", async (data) => {
       try {
