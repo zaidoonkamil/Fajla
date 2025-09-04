@@ -39,7 +39,6 @@ function initChatSocket(io) {
           return socket.emit("messagesLoaded", messages);
         }
 
-        // لو المحادثة مع الأدمن (receiverId = null)
         const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
         const adminIds = admins.map(a => a.id);
 
@@ -79,31 +78,20 @@ function initChatSocket(io) {
         const fullMessage = await ChatMessage.findOne({
           where: { id: newMessage.id },
           include: [
-            { model: User, as: "sender", attributes: ["id", "name"] },
+            { model: User, as: "sender", attributes: ["id", "name", "role"] },
             { model: User, as: "receiver", attributes: ["id", "name"] },
           ],
         });
 
-        let recipients = [];
+        let recipients = receiverId ? [senderId, receiverId] : [];
+
         if (!receiverId) {
+          // رسالة لكل الأدمنات
           const admins = await User.findAll({ where: { role: "admin" }, attributes: ["id"] });
-          recipients = [...admins.map(a => a.id), senderId];
-          await sendNotificationToRole(
-            "admin",
-            fullMessage.message,
-            `رسالة جديدة من ${fullMessage.sender?.name || "مستخدم"}`
-          );
-        } else {
-          recipients = [senderId, receiverId];
-          if (fullMessage.sender.role === "admin") {
-            await sendNotificationToUser(
-              receiverId,
-              fullMessage.message,
-              `رسالة جديدة من الأدمن ${fullMessage.sender?.name || ""}`
-            );
-          }
+          recipients = admins.map(a => a.id);
         }
 
+        // إرسال الرسالة لكل الـ sockets المتصلين بالمستلمين
         recipients.forEach(id => {
           const sockets = userSockets.get(id.toString()) || [];
           sockets.forEach(sid => io.to(sid).emit("newMessage", fullMessage));
@@ -113,6 +101,7 @@ function initChatSocket(io) {
         console.error("❌ خطأ في إرسال الرسالة:", err);
       }
     });
+
 
     socket.on("disconnect", () => {
       console.log(`❌ مستخدم قطع الاتصال: ${userId}`);
