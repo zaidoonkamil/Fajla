@@ -16,13 +16,28 @@ function initChatSocket(io) {
     if (!userSockets.has(userId)) userSockets.set(userId, []);
     userSockets.get(userId).push(socket.id);
 
-    socket.on("getMessages", async () => {
+    socket.on("getMessages", async ({ userId, receiverId }) => {
       try {
+        const whereClause = receiverId
+          ? {
+              [Op.or]: [
+                { senderId: userId, receiverId: receiverId },
+                { senderId: receiverId, receiverId: userId },
+              ],
+            }
+          : {
+              [Op.or]: [
+                { senderId: userId, receiverId: null }, 
+                { senderId: { [Op.in]: adminIds }, receiverId: userId },
+              ],
+            };
+
         const messages = await ChatMessage.findAll({
+          where: whereClause,
           order: [["createdAt", "ASC"]],
           include: [
-            { model: User, as: "sender", attributes: ["id", "name"] },
-            { model: User, as: "receiver", attributes: ["id", "name"] },
+            { model: User, as: "sender", attributes: ["id", "name", "role"] },
+            { model: User, as: "receiver", attributes: ["id", "name", "role"] },
           ],
         });
         socket.emit("messagesLoaded", messages);
